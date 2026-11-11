@@ -381,18 +381,32 @@ def meals_to_buy_on(
     return result
 
 
-def next_week_days(today: date, meal_weekdays: Iterable[int]) -> list[date]:
-    """Meal days of the week that starts on the first Monday after ``today``."""
+def _days_to_next_week(today: date, week_start: int) -> int:
+    """Days from ``today`` to the start of the next week (1-7)."""
+    return (week_start - today.weekday()) % 7 or 7
+
+
+def next_week_days(today: date, meal_weekdays: Iterable[int], week_start: int = 0) -> list[date]:
+    """Meal days of the week that starts on the first ``week_start`` day after ``today``.
+
+    ``week_start`` is a weekday number: 0 Monday ... 6 Sunday.
+    """
     weekdays = set(meal_weekdays)
-    monday = today + timedelta(days=7 - today.weekday())
-    return [monday + timedelta(days=i) for i in range(7) if i in weekdays]
+    start = today + timedelta(days=_days_to_next_week(today, week_start))
+    days = [start + timedelta(days=i) for i in range(7)]
+    return [d for d in days if d.weekday() in weekdays]
 
 
-def rest_of_week_days(today: date, meal_weekdays: Iterable[int]) -> list[date]:
-    """Meal days from tomorrow until Sunday of the current week."""
+def rest_of_week_days(today: date, meal_weekdays: Iterable[int], week_start: int = 0) -> list[date]:
+    """Meal days from tomorrow until the last day of the current week."""
     weekdays = set(meal_weekdays)
     return [
         today + timedelta(days=i)
-        for i in range(1, 7 - today.weekday())
+        for i in range(1, _days_to_next_week(today, week_start))
         if (today + timedelta(days=i)).weekday() in weekdays
     ]
+
+
+def week_end(day: date, week_start: int = 0) -> date:
+    """Last day of the week that ``day`` is in."""
+    return day + timedelta(days=(week_start - day.weekday() - 1) % 7)

@@ -300,3 +300,21 @@ def test_week_helpers():
     assert planner.next_week_days(MONDAY, weekdays)[0] == MONDAY + timedelta(days=7)
     assert planner.rest_of_week_days(wednesday, weekdays) == [date(2026, 11, 12), date(2026, 11, 13)]
     assert planner.rest_of_week_days(date(2026, 11, 13), weekdays) == []
+
+
+def test_week_helpers_with_another_week_start():
+    wednesday = date(2026, 11, 11)
+    sunday = 6
+    every_day = range(7)
+    # The week from Sunday 15.11 to Saturday 21.11.
+    assert planner.next_week_days(wednesday, every_day, sunday) == [
+        date(2026, 11, 15) + timedelta(days=i) for i in range(7)
+    ]
+    assert planner.rest_of_week_days(wednesday, every_day, sunday) == [
+        date(2026, 11, 12), date(2026, 11, 13), date(2026, 11, 14)
+    ]
+    # On a Sunday the next week starts a week later.
+    assert planner.next_week_days(date(2026, 11, 15), every_day, sunday)[0] == date(2026, 11, 22)
+    assert planner.week_end(date(2026, 11, 16), sunday) == date(2026, 11, 21)
+    assert planner.week_end(date(2026, 11, 21), sunday) == date(2026, 11, 21)
+    assert planner.week_end(date(2026, 11, 16)) == date(2026, 11, 22)

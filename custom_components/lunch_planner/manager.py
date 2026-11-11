@@ -29,6 +29,7 @@ from .const import (
     CONF_MEAL_SCHEDULE,
     CONF_NO_SHOPPING_DAYS,
     CONF_SOUP_SHARE,
+    CONF_WEEK_START,
     CONF_WORKDAYS,
     DAYS_OFF_AHEAD,
     DEFAULT_OPTIONS,
@@ -44,6 +45,7 @@ from .const import (
     SCHEDULE_WEEKENDS,
     STORAGE_VERSION,
     WEEKDAYS,
+    default_week_start,
 )
 from .texts import async_load_texts
 
@@ -139,7 +141,13 @@ class LunchPlanner:
     # -- options ---------------------------------------------------------
 
     def option(self, key: str) -> Any:
+        if key == CONF_WEEK_START and key not in self.entry.options:
+            return default_week_start(self.hass.config.country)
         return self.entry.options.get(key, DEFAULT_OPTIONS.get(key))
+
+    @property
+    def week_start(self) -> int:
+        return WEEKDAYS.index(self.option(CONF_WEEK_START))
 
     @property
     def meal_weekdays(self) -> list[int]:
@@ -393,11 +401,11 @@ class LunchPlanner:
         """Event data, ready to be put into a notification by an automation.
 
         ``meals`` and ``summary`` cover every planned day from tomorrow to the
-        end of the last drawn day's week, so a weekly draw also lists a Monday
-        that was drawn earlier because its shopping day had come.
+        end of the last drawn day's week, so a weekly draw also lists the
+        week's first lunch when it was drawn earlier because its shopping day
+        had come.
         """
-        last = max(drawn)
-        week_end = last + timedelta(days=6 - last.weekday())
+        week_end = planner.week_end(max(drawn), self.week_start)
         today = self.today()
         meals = [
             {
@@ -427,11 +435,11 @@ class LunchPlanner:
         ]
 
     def _rest_of_week(self) -> list[date]:
-        days = planner.rest_of_week_days(self.today(), self.meal_weekdays)
+        days = planner.rest_of_week_days(self.today(), self.meal_weekdays, self.week_start)
         return [d for d in days if self.is_meal_day(d)]
 
     def _next_week(self) -> list[date]:
-        days = planner.next_week_days(self.today(), self.meal_weekdays)
+        days = planner.next_week_days(self.today(), self.meal_weekdays, self.week_start)
         return [d for d in days if self.is_meal_day(d)]
 
     async def async_redraw(self, day: date | None = None) -> list[date]:

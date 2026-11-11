@@ -24,6 +24,7 @@ from .const import (
     CONF_NO_SHOPPING_DAYS,
     CONF_SHOW_PANEL,
     CONF_SOUP_SHARE,
+    CONF_WEEK_START,
     CONF_WORKDAYS,
     DEFAULT_OPTIONS,
     DOMAIN,
@@ -32,6 +33,7 @@ from .const import (
     SCHEDULE_EVERY_DAY,
     SCHEDULE_WEEKENDS,
     WEEKDAYS,
+    default_week_start,
 )
 from .texts import async_load_texts
 
@@ -49,8 +51,10 @@ def _weekday_selector(multiple: bool) -> selector.SelectSelector:
 def _options_schema(
     hass: HomeAssistant, current: dict[str, Any], entry_id: str | None = None
 ) -> vol.Schema:
+    defaults = {**DEFAULT_OPTIONS, CONF_WEEK_START: default_week_start(hass.config.country)}
+
     def default(key: str) -> dict[str, Any]:
-        value = current.get(key, DEFAULT_OPTIONS.get(key))
+        value = current.get(key, defaults.get(key))
         return {} if value is None else {"default": value}
 
     # The planner's own calendar cannot hold its days off.
@@ -90,6 +94,7 @@ def _options_schema(
             vol.Required(
                 CONF_AVOID_PREVIOUS_WEEK, **default(CONF_AVOID_PREVIOUS_WEEK)
             ): selector.BooleanSelector(),
+            vol.Required(CONF_WEEK_START, **default(CONF_WEEK_START)): _weekday_selector(False),
             vol.Required(CONF_DRAW_WEEKDAY, **default(CONF_DRAW_WEEKDAY)): _weekday_selector(False),
             vol.Required(CONF_DRAW_TIME, **default(CONF_DRAW_TIME)): selector.TimeSelector(),
             vol.Required(

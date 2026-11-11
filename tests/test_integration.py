@@ -24,7 +24,7 @@ from homeassistant.helpers import entity_registry as er
 from homeassistant.setup import async_setup_component
 from homeassistant.util import dt as dt_util
 
-from custom_components.lunch_planner.const import DEFAULT_OPTIONS, DOMAIN
+from custom_components.lunch_planner.const import DEFAULT_OPTIONS, DOMAIN, default_week_start
 
 WEDNESDAY_NOON = "2026-11-11 12:00:00"
 
@@ -673,3 +673,51 @@ async def test_days_off_far_ahead(
         await hass.services.async_call(DOMAIN, "redraw", {"date": "2026-12-24"}, blocking=True)
     await hass.services.async_call(DOMAIN, "redraw", {"date": "2026-12-23"}, blocking=True)
     assert "2026-12-23" in entry.runtime_data.plan
+
+
+def test_default_week_start_by_country() -> None:
+    assert default_week_start("PL") == "mon"
+    assert default_week_start("us") == "sun"
+    assert default_week_start("AE") == "sat"
+    assert default_week_start(None) == "mon"
+
+
+async def test_week_start_defaults_to_the_country(hass_pl: HomeAssistant) -> None:
+    """Without the option (e.g. a planner from 0.6.0) the country decides."""
+    hass = hass_pl
+    hass.config.country = "US"
+    entry = make_entry()
+    assert "week_start" not in entry.options
+    await setup_entry(hass, entry)
+    assert entry.runtime_data.week_start == 6
+    result = await hass.config_entries.options.async_init(entry.entry_id)
+    defaults = {str(k): k.default() for k in result["data_schema"].schema if callable(getattr(k, "default", None))}
+    assert defaults["week_start"] == "sun"
+
+
+async def test_weekly_draw_with_week_from_sunday(
+    hass_pl: HomeAssistant, freezer: FrozenDateTimeFactory
+) -> None:
+    """Lunches every day, weeks from Sunday: the Saturday draw plans Sun-Sat."""
+    hass = hass_pl
+    freezer.move_to(local("2026-11-13 18:00:00"))  # Friday
+    entry = make_entry(meal_schedule="every_day", week_start="sun", no_shopping_days=[])
+    await setup_entry(hass, entry)
+    await fill_database(hass, entry)
+    planner = entry.runtime_data
+    planner.plan.clear()
+    events = capture_plan_events(hass)
+
+    # Sunday's lunch is bought on Saturday: drawn at Saturday midnight.
+    freezer.move_to(local("2026-11-14 00:00:05"))
+    async_fire_time_changed(hass)
+    await hass.async_block_till_done()
+    assert events[-1].data["drawn"] == ["2026-11-15"]
+
+    freezer.move_to(local("2026-11-14 09:00:00"))
+    async_fire_time_changed(hass)
+    await hass.async_block_till_done()
+    weekly = events[-1].data
+    assert weekly["reason"] == "weekly"
+    assert weekly["drawn"] == [f"2026-11-{d}" for d in range(16, 22)]
+    assert [m["date"] for m in weekly["meals"]] == [f"2026-11-{d}" for d in range(15, 22)]

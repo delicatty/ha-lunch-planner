@@ -42,6 +42,7 @@ CONF_WORKDAYS = "workdays"
 CONF_MEAL_MODE = "meal_mode"
 CONF_SOUP_SHARE = "soup_share"
 CONF_AVOID_PREVIOUS_WEEK = "avoid_previous_week"
+CONF_WEEK_START = "week_start"
 CONF_DRAW_WEEKDAY = "draw_weekday"
 CONF_DRAW_TIME = "draw_time"
 CONF_NO_SHOPPING_DAYS = "no_shopping_days"
@@ -72,6 +73,29 @@ DEFAULT_OPTIONS = {
     CONF_LUNCH_DURATION: 30,
     CONF_SHOW_PANEL: True,
 }
+
+# First day of the week by country (CLDR week data); every other country
+# starts the week on Monday. Used as the default of the week start option.
+_SUNDAY_FIRST = frozenset(
+    "AG AS BD BR BS BT BW BZ CA CN CO DM DO ET GT GU HK HN ID IL IN JM JP KE KH "
+    "KR LA MH MM MO MT MX MZ NI NP PA PE PH PK PR PT PY SA SG SV TH TT TW UM US "
+    "VE VI WS YE ZA ZW".split()
+)
+_SATURDAY_FIRST = frozenset("AE AF BH DJ DZ EG IQ IR JO KW LY OM QA SD SY".split())
+_FRIDAY_FIRST = frozenset({"MV"})
+
+
+def default_week_start(country: str | None) -> str:
+    """First day of the week in ``country`` (ISO code), as an option value."""
+    country = (country or "").upper()
+    if country in _SUNDAY_FIRST:
+        return "sun"
+    if country in _SATURDAY_FIRST:
+        return "sat"
+    if country in _FRIDAY_FIRST:
+        return "fri"
+    return "mon"
+
 
 # Option of version 0.5 and older, replaced by the schedule and the work days.
 OLD_CONF_MEAL_DAYS = "meal_days"

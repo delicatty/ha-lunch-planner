@@ -29,8 +29,9 @@ adding to a shopping list are done by automations; two ready
 - A weekly draw plans the next week. Within a week nothing repeats as long as
   the database allows it, nothing repeats on two days in a row, and (optionally)
   last week's meals are avoided.
-- What a lunch is: soup **or** main course (you choose the share of soup days),
-  soup **and** main course, soup only, or main course only.
+- What a lunch is: **one course** (soup or a main course; you choose the share
+  of soup days), **two courses** (soup and a main course), soup only, or main
+  course only.
 - Lunches on your work days (Monday–Friday by default), on the other days
   (weekends), or every day.
 - Days off: a day with an all-day event in a chosen calendar has no lunch, e.g.
@@ -61,16 +62,18 @@ adding to a shopping list are done by automations; two ready
 |---|---|
 | When to have lunch | On work days |
 | Work days | Monday–Friday (weekends are the other days) |
-| What each lunch is | Soup or main course, 50% soup days |
+| What each lunch is | One course, 50% soup days |
 | Avoid last week's meals | on |
-| Weekly draw | Saturday 09:00 (plans the week from the next Monday) |
+| First day of the week | From the country set in Home Assistant (Monday in most of Europe, Sunday e.g. in the US) |
+| Weekly draw | Saturday 09:00 (plans the next week) |
 | Days without shopping | Sunday |
-| Days-off calendars | none (e.g. the Holiday integration's calendar for your country) |
+| Days-off and holiday calendars | none (e.g. the Holiday integration's calendar for your country) |
 | Shops closed on public holidays | on (only the Holiday integration's calendars; a holiday trip cancels lunches only) |
 | Lunch time, lunch length | 13:00, 30 minutes (each lunch is an event in the plan calendar) |
 | Sidebar panel | on (without it, manage meals with the actions below) |
 
-A lunch whose shopping day comes before the weekly draw (Monday, bought on
+Best set the weekly draw before the shopping for the first lunch of the week.
+A lunch whose shopping comes before the draw (e.g. Monday's, bought on
 Saturday) is drawn on its own at midnight before its shopping day.
 
 ## Blueprints
@@ -163,8 +166,11 @@ skrobiowego** (ziemniaki) i **surówki lub warzyw**.
   (pusta: na listę zakupów trafia nazwa), opcjonalny sezon (np. maj–lipiec)
   i przełącznik **Uwzględniaj w losowaniu**: wyłączone danie zostaje w bazie, ale nie jest
   losowane.
-- Losowanie raz w tygodniu (domyślnie sobota 9:00) planuje tydzień od
-  najbliższego poniedziałku, bez powtórek w tygodniu i dzień po dniu, a jeśli
+- Obiad to jedno danie (zupa albo drugie danie), dwa dania (zupa i drugie
+  danie), tylko zupa albo tylko drugie danie.
+- Losowanie raz w tygodniu (domyślnie sobota 9:00) planuje następny tydzień
+  (pierwszy dzień tygodnia ustawiasz, domyślnie wynika z kraju w ustawieniach
+  Home Assistanta), bez powtórek w tygodniu i dzień po dniu, a jeśli
   się da, także bez dań z poprzedniego tygodnia.
 - Dni robocze ustawiasz sama (domyślnie pn–pt); weekendy to pozostałe dni.
 - Dni wolne: w dzień z wydarzeniem całodniowym w wybranym kalendarzu nie ma
