@@ -442,7 +442,10 @@ class LunchPlannerPanel extends HTMLElement {
       card.appendChild(el("div", { class: "empty" }, texts.empty));
       return card;
     }
-    for (const meal of meals) {
+    // Alphabetical in the user's language (ą after a, ż last in Polish).
+    const collator = new Intl.Collator(this._hass.locale?.language || this._hass.language, { sensitivity: "base", numeric: true });
+    const sorted = [...meals].sort((a, b) => collator.compare(a.name, b.name));
+    for (const meal of sorted) {
       const season = this._seasonLabel(meal.season);
       const toggle = el("input", {
         type: "checkbox",
