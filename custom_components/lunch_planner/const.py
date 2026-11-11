@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from datetime import timedelta
+
 from homeassistant.const import Platform
 
 from .planner import (
@@ -37,7 +39,11 @@ CONF_AVOID_PREVIOUS_WEEK = "avoid_previous_week"
 CONF_DRAW_WEEKDAY = "draw_weekday"
 CONF_DRAW_TIME = "draw_time"
 CONF_NO_SHOPPING_DAYS = "no_shopping_days"
+CONF_LUNCH_TIME = "lunch_time"
 CONF_SHOW_PANEL = "show_panel"
+
+# A lunch in the calendar starts at the lunch time and lasts this long.
+LUNCH_DURATION = timedelta(hours=1)
 
 DEFAULT_OPTIONS = {
     CONF_MEAL_DAYS: ["mon", "tue", "wed", "thu", "fri"],
@@ -50,6 +56,7 @@ DEFAULT_OPTIONS = {
     CONF_DRAW_WEEKDAY: "sat",
     CONF_DRAW_TIME: "09:00:00",
     CONF_NO_SHOPPING_DAYS: ["sun"],
+    CONF_LUNCH_TIME: "13:00:00",
     CONF_SHOW_PANEL: True,
 }
 

@@ -11,6 +11,7 @@
 // hass.loadBackendTranslation. Property name -> translation key.
 const TEXT_KEYS = {
   plan: "plan",
+  actions: "actions",
   database: "database",
   single: "single",
   composed: "composed",
@@ -70,6 +71,7 @@ const STYLE = `
   h3 { font-size: 16px; font-weight: 500; margin: 20px 4px 8px; color: var(--secondary-text-color); }
   .plan { display: grid; grid-template-columns: minmax(280px, 1fr) minmax(320px, 2fr); gap: 16px; align-items: start; }
   .stack { display: grid; gap: 8px; }
+  .actions-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 8px; }
   .lists { display: grid; gap: 16px; align-items: start; }
   .lists.two { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .lists.three { grid-template-columns: repeat(3, minmax(0, 1fr)); }
@@ -362,22 +364,35 @@ class LunchPlannerPanel extends HTMLElement {
           this._card(helpers, { type: "tile", entity: e[key], name: this._name(e[key], planner.title) }, stack);
         }
       }
-      for (const [key, confirm] of [["redraw", texts.redrawConfirm]]) {
-        if (!e[key]) continue;
-        const tapAction = {
-          action: "perform-action",
-          perform_action: "button.press",
-          target: { entity_id: e[key] },
-        };
-        if (confirm) tapAction.confirmation = { text: confirm };
-        this._card(
-          helpers,
-          { type: "tile", entity: e[key], name: this._name(e[key], planner.title), hide_state: true, tap_action: tapAction },
-          stack,
-        );
-      }
       if (e.plan) {
         this._card(helpers, { type: "calendar", entities: [e.plan], initial_view: "listWeek" }, calendarBox);
+      }
+
+      if (e.redraw) {
+        content.appendChild(el("h2", {}, texts.actions));
+        const actions = el("div", { class: "actions-grid" });
+        content.appendChild(actions);
+        // Tapping the tile or its icon asks first; holding does nothing.
+        const press = {
+          action: "perform-action",
+          perform_action: "button.press",
+          target: { entity_id: e.redraw },
+          confirmation: { text: texts.redrawConfirm },
+        };
+        this._card(
+          helpers,
+          {
+            type: "tile",
+            entity: e.redraw,
+            name: this._name(e.redraw, planner.title),
+            hide_state: true,
+            tap_action: press,
+            icon_tap_action: press,
+            hold_action: { action: "none" },
+            double_tap_action: { action: "none" },
+          },
+          actions,
+        );
       }
 
       content.appendChild(el("h2", {}, texts.database));
@@ -584,6 +599,14 @@ class LunchPlannerPanel extends HTMLElement {
         saveButton,
       ),
     );
+    // Enter in the name field submits the form; Ctrl+Enter (Cmd+Enter on a
+    // Mac) does it from anywhere, including the multi-line "what to buy" field.
+    form.addEventListener("keydown", (ev) => {
+      if (ev.key === "Enter" && (ev.ctrlKey || ev.metaKey)) {
+        ev.preventDefault();
+        form.requestSubmit();
+      }
+    });
     dialog.replaceChildren(form);
     dialog.showModal();
     name.focus();

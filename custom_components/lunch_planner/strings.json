@@ -20,6 +20,7 @@
           "draw_weekday": "Weekly draw: day",
           "draw_time": "Weekly draw: time",
           "no_shopping_days": "Days without shopping",
+          "lunch_time": "Lunch time",
           "show_panel": "Show the Lunch planner panel"
         },
         "data_description": {
@@ -28,6 +29,7 @@
           "avoid_previous_week": "Prefer meals that were not served the week before, when the database has enough of them.",
           "draw_weekday": "The draw plans the week starting on the next Monday. It must come before the shopping for Monday.",
           "no_shopping_days": "Shopping for the day after is moved to the last earlier day, e.g. Monday's lunch is bought on Saturday when shops are closed on Sunday.",
+          "lunch_time": "When lunch starts in the plan calendar; each lunch lasts an hour.",
           "show_panel": "A sidebar panel with the plan and the meal database editor. Without it, manage meals with the add_meal and remove_meal actions."
         }
       }
@@ -50,6 +52,7 @@
           "draw_weekday": "Weekly draw: day",
           "draw_time": "Weekly draw: time",
           "no_shopping_days": "Days without shopping",
+          "lunch_time": "Lunch time",
           "show_panel": "Show the Lunch planner panel"
         },
         "data_description": {
@@ -58,6 +61,7 @@
           "avoid_previous_week": "Prefer meals that were not served the week before, when the database has enough of them.",
           "draw_weekday": "The draw plans the week starting on the next Monday. It must come before the shopping for Monday.",
           "no_shopping_days": "Shopping for the day after is moved to the last earlier day, e.g. Monday's lunch is bought on Saturday when shops are closed on Sunday.",
+          "lunch_time": "When lunch starts in the plan calendar; each lunch lasts an hour.",
           "show_panel": "A sidebar panel with the plan and the meal database editor. Without it, manage meals with the add_meal and remove_meal actions."
         }
       }
@@ -127,7 +131,8 @@
         "delete": "Delete",
         "delete_confirm": "Delete this meal?",
         "error": "Could not save",
-        "not_drawn": "not drawn"
+        "not_drawn": "not drawn",
+        "actions": "Actions"
       }
     },
     "notification": {

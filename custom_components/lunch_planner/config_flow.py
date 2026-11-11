@@ -15,6 +15,7 @@ from .const import (
     CONF_AVOID_PREVIOUS_WEEK,
     CONF_DRAW_TIME,
     CONF_DRAW_WEEKDAY,
+    CONF_LUNCH_TIME,
     CONF_MEAL_DAYS,
     CONF_MEAL_MODE,
     CONF_NO_SHOPPING_DAYS,
@@ -67,6 +68,7 @@ def _options_schema(hass: HomeAssistant, current: dict[str, Any]) -> vol.Schema:
             vol.Required(
                 CONF_NO_SHOPPING_DAYS, **default(CONF_NO_SHOPPING_DAYS)
             ): _weekday_selector(True),
+            vol.Required(CONF_LUNCH_TIME, **default(CONF_LUNCH_TIME)): selector.TimeSelector(),
             vol.Required(CONF_SHOW_PANEL, **default(CONF_SHOW_PANEL)): selector.BooleanSelector(),
         }
     )

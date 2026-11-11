@@ -18,12 +18,13 @@ adding to a shopping list are done by automations; two ready
 
 - A **Lunch planner panel** in the sidebar shows today's and tomorrow's lunch,
   what to buy next, the plan and the meal database editor, ready right after
-  installation.
+  installation. **Draw upcoming lunches again** sits in a separate *Actions*
+  section and asks for confirmation. In the meal editor Ctrl+Enter saves.
 - The meal database has five categories: soups and one-part main courses
   (single dishes); main parts, starchy sides and salads/vegetables (composed
   main courses).
 - Each meal has a name, what to buy (with nothing listed, its name goes on the
-  shopping list), an optional season (e.g. May–July) and a **Draw** switch:
+  shopping list), an optional season (e.g. May–July) and an **Include in the draw** switch:
   switched off, it stays in the database but is not drawn.
 - A weekly draw plans the next week. Within a week nothing repeats as long as
   the database allows it, nothing repeats on two days in a row, and (optionally)
@@ -54,6 +55,7 @@ adding to a shopping list are done by automations; two ready
 | Avoid last week's meals | on |
 | Weekly draw | Saturday 09:00 (plans the week from the next Monday) |
 | Days without shopping | Sunday |
+| Lunch time | 13:00 (each lunch is a one-hour event in the plan calendar) |
 | Sidebar panel | on (without it, manage meals with the actions below) |
 
 A lunch whose shopping day comes before the weekly draw (Monday, bought on
@@ -76,7 +78,7 @@ All entities belong to one device per planner, named after the planner
 
 | Entity | What it is |
 |---|---|
-| Lunch plan (calendar) | The drawn plan, one all-day event per lunch |
+| Lunch plan (calendar) | The drawn plan, one one-hour event per lunch, at the lunch time |
 | Today's lunch, Tomorrow's lunch (sensors) | The lunch; parts and things to buy in attributes |
 | Next shopping (sensor) | Date of the next shopping day (today or later) |
 | To buy (sensor) | What to buy on that day, as text (cut at 255 characters); attributes `shopping_date`, `shopping_items` (the whole list), `meals`, `summary` (one line per lunch) |
@@ -135,10 +137,14 @@ Obiad to **zupa** albo **drugie danie**. Drugie danie jest jednoskładnikowe
 skrobiowego** (ziemniaki) i **surówki lub warzyw**.
 
 - Po instalacji w pasku bocznym pojawia się panel z obiadem na dziś i jutro,
-  tym, co kupić, planem i bazą dań.
+  tym, co kupić, planem i bazą dań. Przycisk „Losuj ponownie nadchodzące
+  obiady” jest w osobnej sekcji „Akcje” i pyta o potwierdzenie. W oknie
+  edycji dania Ctrl+Enter zapisuje.
+- Każdy obiad to w kalendarzu planu wydarzenie o godzinie obiadu (domyślnie
+  13:00), trwające godzinę.
 - Bazę dań edytujesz w tym panelu. Każde danie ma nazwę, listę „Co kupić”
   (pusta: na listę zakupów trafia nazwa), opcjonalny sezon (np. maj–lipiec)
-  i przełącznik **Losuj**: wyłączone danie zostaje w bazie, ale nie jest
+  i przełącznik **Uwzględniaj w losowaniu**: wyłączone danie zostaje w bazie, ale nie jest
   losowane.
 - Losowanie raz w tygodniu (domyślnie sobota 9:00) planuje tydzień od
   najbliższego poniedziałku, bez powtórek w tygodniu i dzień po dniu, a jeśli

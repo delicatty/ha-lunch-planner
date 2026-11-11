@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, time
 from typing import Any
 
 from homeassistant.components.calendar import CalendarEntity, CalendarEvent
@@ -11,7 +11,9 @@ from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 from homeassistant.util import dt as dt_util
 
 from . import LunchPlannerConfigEntry
+from .const import CONF_LUNCH_TIME, LUNCH_DURATION
 from .entity import LunchPlannerEntity
+from .manager import LunchPlanner
 
 
 async def async_setup_entry(
@@ -22,8 +24,14 @@ async def async_setup_entry(
     async_add_entities([PlanCalendar(entry.runtime_data, "plan")])
 
 
-def _event(meal: dict[str, Any], title: str) -> CalendarEvent:
-    day = date.fromisoformat(meal["date"])
+def _lunch_start(planner: LunchPlanner, day: date) -> datetime:
+    """The lunch's start in Home Assistant's time zone."""
+    hour, minute, *_ = (int(p) for p in str(planner.option(CONF_LUNCH_TIME)).split(":"))
+    return datetime.combine(day, time(hour, minute), tzinfo=dt_util.get_default_time_zone())
+
+
+def _event(planner: LunchPlanner, meal: dict[str, Any]) -> CalendarEvent:
+    start = _lunch_start(planner, date.fromisoformat(meal["date"]))
     description = "\n".join(
         f"{p['name']}: {', '.join(p['ingredients'])}"
         if p.get("ingredients") and p["ingredients"] != [p["name"]]
@@ -31,35 +39,33 @@ def _event(meal: dict[str, Any], title: str) -> CalendarEvent:
         for p in meal["parts"]
     )
     return CalendarEvent(
-        start=day,
-        end=day + timedelta(days=1),
-        summary=title,
+        start=start,
+        end=start + LUNCH_DURATION,
+        summary=planner.event_title(meal),
         description=description,
         uid=meal["date"],
     )
 
 
 class PlanCalendar(LunchPlannerEntity, CalendarEntity):
-    """All-day events, one per planned lunch."""
+    """One event per planned lunch, at the lunch time from the options."""
 
     @property
     def event(self) -> CalendarEvent | None:
-        """Today's lunch, or the next one."""
-        today = self.planner.today().isoformat()
-        for iso in sorted(self.planner.plan):
-            if iso >= today:
-                meal = self.planner.plan[iso]
-                return _event(meal, self.planner.event_title(meal))
+        """The lunch going on now, or the next one."""
+        now = dt_util.now()
+        for _, meal in sorted(self.planner.plan.items()):
+            event = _event(self.planner, meal)
+            if event.end > now:
+                return event
         return None
 
     async def async_get_events(
         self, hass: HomeAssistant, start_date: datetime, end_date: datetime
     ) -> list[CalendarEvent]:
         events = []
-        for iso, meal in sorted(self.planner.plan.items()):
-            day = date.fromisoformat(iso)
-            day_start = dt_util.start_of_local_day(day)
-            day_end = dt_util.start_of_local_day(day + timedelta(days=1))
-            if day_start < end_date and day_end > start_date:
-                events.append(_event(meal, self.planner.event_title(meal)))
+        for _, meal in sorted(self.planner.plan.items()):
+            event = _event(self.planner, meal)
+            if event.start < end_date and event.end > start_date:
+                events.append(event)
         return events

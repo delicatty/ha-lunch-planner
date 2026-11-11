@@ -142,7 +142,13 @@ async def test_setup_creates_entities_and_first_plan(
         return_response=True,
     )
     plan_events = next(iter(events.values()))["events"]
-    assert [e["start"] for e in plan_events] == ["2026-11-12", "2026-11-13"]
+    # At the default lunch time, 13:00, for an hour.
+    assert [e["start"] for e in plan_events] == [
+        "2026-11-12T13:00:00+01:00", "2026-11-13T13:00:00+01:00"
+    ]
+    assert [e["end"] for e in plan_events] == [
+        "2026-11-12T14:00:00+01:00", "2026-11-13T14:00:00+01:00"
+    ]
     for event in plan_events:
         assert event["summary"].startswith("Obiad: ")
         assert event["summary"][7].islower(), event["summary"]
@@ -150,6 +156,35 @@ async def test_setup_creates_entities_and_first_plan(
     planner = entry.runtime_data
     soup_days = [iso for iso, m in planner.plan.items() if m["parts"][0]["category"] == "soup"]
     assert len(soup_events) == len(soup_days)
+
+
+async def test_calendar_uses_the_lunch_time(
+    hass_pl: HomeAssistant, freezer: FrozenDateTimeFactory
+) -> None:
+    hass = hass_pl
+    freezer.move_to(local("2026-11-12 13:10:00"))  # Thursday, during lunch
+    entry = make_entry(lunch_time="12:30:00")
+    await setup_entry(hass, entry)
+    await fill_database(hass, entry)
+    planner = entry.runtime_data
+    planner.plan["2026-11-12"] = {"date": "2026-11-12", "parts": [
+        {"category": "soup", "uid": "x", "name": "Grzybowa", "ingredients": ["Grzybowa"]}
+    ]}
+    planner._on_midnight(dt_util.now())  # refresh the entities
+    await hass.async_block_till_done()
+
+    calendar = hass.states.get(entity(hass, entry, "calendar", "plan"))
+    # 12:30-13:30: the lunch is going on now.
+    assert calendar.state == "on"
+    assert calendar.attributes["message"] == "Obiad: zupa grzybowa"
+    assert calendar.attributes["start_time"] == "2026-11-12 12:30:00"
+
+    freezer.move_to(local("2026-11-12 13:40:00"))
+    planner._on_midnight(dt_util.now())
+    await hass.async_block_till_done()
+    calendar = hass.states.get(entity(hass, entry, "calendar", "plan"))
+    assert calendar.state == "off"
+    assert calendar.attributes["start_time"] != "2026-11-12 12:30:00"
 
 
 async def test_item_description_and_disabled_items(

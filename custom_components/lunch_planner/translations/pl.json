@@ -20,6 +20,7 @@
           "draw_weekday": "Losowanie: dzień",
           "draw_time": "Losowanie: godzina",
           "no_shopping_days": "Dni bez zakupów",
+          "lunch_time": "Godzina obiadu",
           "show_panel": "Pokazuj panel planera w pasku bocznym"
         },
         "data_description": {
@@ -28,6 +29,7 @@
           "avoid_previous_week": "Wybieraj dania, których nie było tydzień wcześniej, jeśli baza ma ich dość.",
           "draw_weekday": "Losowanie planuje tydzień od najbliższego poniedziałku. Musi być przed zakupami na poniedziałek.",
           "no_shopping_days": "Zakupy na następny dzień przechodzą na ostatni wcześniejszy dzień, np. obiad na poniedziałek kupujesz w sobotę, gdy w niedzielę sklepy są zamknięte.",
+          "lunch_time": "O której zaczyna się obiad w kalendarzu planu; każdy obiad trwa godzinę.",
           "show_panel": "Panel z planem i edytorem bazy dań. Bez niego dania zmieniasz akcjami add_meal i remove_meal."
         }
       }
@@ -50,6 +52,7 @@
           "draw_weekday": "Losowanie: dzień",
           "draw_time": "Losowanie: godzina",
           "no_shopping_days": "Dni bez zakupów",
+          "lunch_time": "Godzina obiadu",
           "show_panel": "Pokazuj panel planera w pasku bocznym"
         },
         "data_description": {
@@ -58,6 +61,7 @@
           "avoid_previous_week": "Wybieraj dania, których nie było tydzień wcześniej, jeśli baza ma ich dość.",
           "draw_weekday": "Losowanie planuje tydzień od najbliższego poniedziałku. Musi być przed zakupami na poniedziałek.",
           "no_shopping_days": "Zakupy na następny dzień przechodzą na ostatni wcześniejszy dzień, np. obiad na poniedziałek kupujesz w sobotę, gdy w niedzielę sklepy są zamknięte.",
+          "lunch_time": "O której zaczyna się obiad w kalendarzu planu; każdy obiad trwa godzinę.",
           "show_panel": "Panel z planem i edytorem bazy dań. Bez niego dania zmieniasz akcjami add_meal i remove_meal."
         }
       }
@@ -127,7 +131,8 @@
         "delete": "Usuń",
         "delete_confirm": "Usunąć to danie?",
         "error": "Nie udało się zapisać",
-        "not_drawn": "nie losowane"
+        "not_drawn": "nie losowane",
+        "actions": "Akcje"
       }
     },
     "notification": {
