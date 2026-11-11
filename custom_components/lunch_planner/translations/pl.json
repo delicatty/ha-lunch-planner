@@ -11,7 +11,7 @@
       },
       "settings": {
         "title": "Ustawienia",
-        "description": "Baza dań to pięć list zadań, które tworzy ta integracja; edytujesz je w panelu planera w pasku bocznym. W opisie pozycji wpisz, co kupić: każdą rzecz w osobnej linii albo po przecinku. Linia `sezon: 5-7` ogranicza pozycję do maja–lipca. Odhaczona pozycja nie jest losowana.",
+        "description": "Dania dodajesz w panelu planera w pasku bocznym.",
         "data": {
           "meal_days": "Dni z obiadem",
           "meal_mode": "Co jest na obiad",
@@ -39,7 +39,7 @@
           "no_shopping_days": "Zakupy na następny dzień przechodzą na ostatni wcześniejszy dzień, np. obiad na poniedziałek kupujesz w sobotę, gdy w niedzielę sklepy są zamknięte.",
           "notify_services": "Akcje powiadomień, np. notify.mobile_app_telefon. Trafia tu plan tygodnia i listy zakupów.",
           "shopping_list": "Lista zadań, na którą trafiają rzeczy do kupienia.",
-          "show_panel": "Panel z planem i bazą dań. Listy bazy dań są ukryte w panelu list zadań; jeśli wyłączysz panel, odkryj je w ustawieniach encji."
+          "show_panel": "Panel z planem i edytorem bazy dań. Bez niego dania zmieniasz akcjami add_meal i remove_meal."
         }
       }
     },
@@ -52,7 +52,7 @@
     "step": {
       "init": {
         "title": "Ustawienia",
-        "description": "Baza dań to pięć list zadań, które tworzy ta integracja; edytujesz je w panelu planera w pasku bocznym. W opisie pozycji wpisz, co kupić: każdą rzecz w osobnej linii albo po przecinku. Linia `sezon: 5-7` ogranicza pozycję do maja–lipca. Odhaczona pozycja nie jest losowana.",
+        "description": "Dania dodajesz w panelu planera w pasku bocznym.",
         "data": {
           "meal_days": "Dni z obiadem",
           "meal_mode": "Co jest na obiad",
@@ -80,7 +80,7 @@
           "no_shopping_days": "Zakupy na następny dzień przechodzą na ostatni wcześniejszy dzień, np. obiad na poniedziałek kupujesz w sobotę, gdy w niedzielę sklepy są zamknięte.",
           "notify_services": "Akcje powiadomień, np. notify.mobile_app_telefon. Trafia tu plan tygodnia i listy zakupów.",
           "shopping_list": "Lista zadań, na którą trafiają rzeczy do kupienia.",
-          "show_panel": "Panel z planem i bazą dań. Listy bazy dań są ukryte w panelu list zadań; jeśli wyłączysz panel, odkryj je w ustawieniach encji."
+          "show_panel": "Panel z planem i edytorem bazy dań. Bez niego dania zmieniasz akcjami add_meal i remove_meal."
         }
       }
     },
@@ -114,26 +114,18 @@
         "sat": "sobota",
         "sun": "niedziela"
       }
+    },
+    "category": {
+      "options": {
+        "soup": "Zupa",
+        "dish": "Drugie danie jednoskładnikowe",
+        "protein": "Drugie danie: składnik główny",
+        "starch": "Drugie danie: dodatek skrobiowy",
+        "salad": "Drugie danie: surówka / warzywa"
+      }
     }
   },
   "entity": {
-    "todo": {
-      "soup": {
-        "name": "Zupy"
-      },
-      "dish": {
-        "name": "Drugie dania jednoskładnikowe"
-      },
-      "protein": {
-        "name": "Drugie danie: składnik główny"
-      },
-      "starch": {
-        "name": "Drugie danie: dodatek skrobiowy"
-      },
-      "salad": {
-        "name": "Drugie danie: surówki i warzywa"
-      }
-    },
     "calendar": {
       "plan": {
         "name": "Plan obiadów"
@@ -183,6 +175,53 @@
           "description": "Potrzebne tylko przy więcej niż jednym planerze."
         }
       }
+    },
+    "add_meal": {
+      "name": "Dodaj danie",
+      "description": "Dodaje danie do bazy albo zmienia danie o tej samej nazwie w tej kategorii.",
+      "fields": {
+        "config_entry_id": {
+          "name": "Planer",
+          "description": "Potrzebne tylko przy więcej niż jednym planerze."
+        },
+        "category": {
+          "name": "Kategoria"
+        },
+        "name": {
+          "name": "Nazwa"
+        },
+        "ingredients": {
+          "name": "Co kupić",
+          "description": "Każda rzecz w osobnej linii albo po przecinku. Puste: na listę zakupów trafia nazwa."
+        },
+        "season_from": {
+          "name": "Sezon od (miesiąc)",
+          "description": "Razem z „Sezon do”: danie jest losowane tylko w tych miesiącach."
+        },
+        "season_to": {
+          "name": "Sezon do (miesiąc)"
+        },
+        "active": {
+          "name": "Losuj",
+          "description": "Wyłączone: danie zostaje w bazie, ale nie jest losowane."
+        }
+      }
+    },
+    "remove_meal": {
+      "name": "Usuń danie",
+      "description": "Usuwa danie z bazy.",
+      "fields": {
+        "config_entry_id": {
+          "name": "Planer",
+          "description": "Potrzebne tylko przy więcej niż jednym planerze."
+        },
+        "category": {
+          "name": "Kategoria"
+        },
+        "name": {
+          "name": "Nazwa"
+        }
+      }
     }
   },
   "exceptions": {
@@ -191,6 +230,12 @@
     },
     "entry_ambiguous": {
       "message": "Jest więcej niż jeden planer: wybierz jeden."
+    },
+    "season_incomplete": {
+      "message": "Podaj oba miesiące sezonu albo żaden."
+    },
+    "meal_not_found": {
+      "message": "W tej kategorii nie ma dania {name}."
     }
   }
 }

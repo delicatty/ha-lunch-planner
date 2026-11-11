@@ -19,7 +19,7 @@ from .planner import (
 )
 
 DOMAIN = "lunch_planner"
-PLATFORMS = [Platform.BUTTON, Platform.CALENDAR, Platform.SENSOR, Platform.TODO]
+PLATFORMS = [Platform.BUTTON, Platform.CALENDAR, Platform.SENSOR]
 
 STORAGE_VERSION = 1
 HISTORY_DAYS = 60
@@ -77,6 +77,8 @@ ATTR_DATE = "date"
 
 SERVICE_REDRAW = "redraw"
 SERVICE_SEND_SHOPPING_LIST = "send_shopping_list"
+SERVICE_ADD_MEAL = "add_meal"
+SERVICE_REMOVE_MEAL = "remove_meal"
 
 ACTION_REDRAW_PREFIX = "LUNCH_PLANNER_REDRAW_"
 EVENT_PLAN_UPDATED = f"{DOMAIN}_plan_updated"

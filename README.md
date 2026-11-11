@@ -13,14 +13,13 @@ It is made for people who don't cook from recipes: a lunch is either a
 ## Features
 
 - A **Lunch planner panel** in the sidebar shows today's and tomorrow's lunch,
-  the plan and the meal database, ready right after installation.
-- The meal database is five to-do lists you edit in that panel: soups, one-part
-  main courses, main parts, starchy sides, salads/vegetables. They are hidden
-  from the To-do panel so they don't clutter it.
-- In an item's description you list what to buy for it, one thing per line or
-  separated by commas. With no description, the item's name goes on the list.
-- Seasonal items: a `season: 5-7` line limits an item to May–July.
-- Ticking an item off keeps it in the database but stops it from being drawn.
+  the plan and the meal database editor, ready right after installation.
+- The meal database has five categories: soups and one-part main courses
+  (single dishes); main parts, starchy sides and salads/vegetables (composed
+  main courses).
+- Each meal has a name, what to buy (with nothing listed, its name goes on the
+  shopping list), an optional season (e.g. May–July) and a **Draw** switch:
+  switched off, it stays in the database but is not drawn.
 - A weekly draw plans the next week. Within a week nothing repeats as long as
   the database allows it, nothing repeats on two days in a row, and (optionally)
   last week's meals are avoided.
@@ -42,7 +41,7 @@ It is made for people who don't cook from recipes: a lunch is either a
    (On Home Assistant 2026.10 and older: HACS → Custom repositories.)
 2. Download **Lunch Planner** and restart Home Assistant.
 3. **Settings → Devices & services → Add integration → Lunch Planner.**
-4. Open the new panel in the sidebar and fill the meal database.
+4. Open the new panel in the sidebar and add your meals.
 
 ## Settings
 
@@ -56,7 +55,7 @@ It is made for people who don't cook from recipes: a lunch is either a
 | Days without shopping | Sunday |
 | Notifications | none: choose your phone's notify action |
 | Shopping to-do list | none |
-| Sidebar panel | on (turning it off: unhide the database lists in their entity settings) |
+| Sidebar panel | on (without it, manage meals with the actions below) |
 
 The weekly draw must come before the shopping for the first lunch of the week.
 If it hasn't run yet when that shopping is due, the missing days are drawn then.
@@ -65,7 +64,6 @@ If it hasn't run yet when that shopping is due, the missing days are drawn then.
 
 | Entity | What it is |
 |---|---|
-| `todo.*` (5) | The meal database (hidden; edited in the panel or any to-do list card) |
 | `calendar.*_lunch_plan` | The drawn plan, one all-day event per lunch |
 | `sensor.*_today_s_lunch`, `sensor.*_tomorrow_s_lunch` | The lunch; ingredients in attributes |
 | `sensor.*_next_shopping` | Date of the next shopping list; meals and items in attributes |
@@ -76,6 +74,13 @@ If it hasn't run yet when that shopping is due, the missing days are drawn then.
 
 - `lunch_planner.redraw` – draw again one `date`, or all upcoming lunches.
 - `lunch_planner.send_shopping_list` – send today's shopping list now.
+- `lunch_planner.add_meal` – add a meal (`category`, `name`, `ingredients`,
+  `season_from`/`season_to`, `active`), or change the one with that name.
+- `lunch_planner.remove_meal` – remove a meal by `category` and `name`.
+
+Upgrading from 0.2: the meals kept in to-do lists move into the new database
+on their own (a `season: 5-7` line becomes the season, ticked-off items are
+switched off), and the old to-do list entities are removed.
 
 The event `lunch_planner_plan_updated` fires after every draw.
 
@@ -104,11 +109,10 @@ skrobiowego** (ziemniaki) i **surówki lub warzyw**.
 
 - Po instalacji w pasku bocznym pojawia się panel z obiadem na dziś i jutro,
   planem i bazą dań.
-- Baza dań to pięć list zadań, które edytujesz w tym panelu (w panelu list zadań
-  są ukryte). W opisie pozycji wpisz, co kupić (w osobnych liniach albo po
-  przecinku). Bez opisu na listę trafia nazwa.
-- Linia `sezon: 5-7` ogranicza pozycję do maja–lipca. Odhaczona pozycja nie
-  jest losowana.
+- Bazę dań edytujesz w tym panelu. Każde danie ma nazwę, listę „Co kupić”
+  (pusta: na listę zakupów trafia nazwa), opcjonalny sezon (np. maj–lipiec)
+  i przełącznik **Losuj**: wyłączone danie zostaje w bazie, ale nie jest
+  losowane.
 - Losowanie raz w tygodniu (domyślnie sobota 9:00) planuje tydzień od
   najbliższego poniedziałku, bez powtórek w tygodniu i dzień po dniu, a jeśli
   się da, także bez dań z poprzedniego tygodnia.

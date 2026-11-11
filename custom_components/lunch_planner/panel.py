@@ -18,7 +18,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers import entity_registry as er
 from homeassistant.loader import async_get_integration
 
-from .const import CATEGORIES, CONF_SHOW_PANEL, DEFAULT_OPTIONS, DOMAIN, messages
+from .const import CONF_SHOW_PANEL, DEFAULT_OPTIONS, DOMAIN, messages
 
 PANEL_URL_PATH = "lunch-planner"
 PANEL_COMPONENT = "lunch-planner-panel"
@@ -27,7 +27,7 @@ _STATIC_REGISTERED = f"{DOMAIN}_static_registered"
 _FRONTEND_DIR = Path(__file__).parent / "frontend"
 
 # Entities shown in the panel, by the key in their unique ID.
-_KEYS = ("today", "tomorrow", "next_shopping", "redraw", "send_shopping", "plan", *CATEGORIES)
+_KEYS = ("today", "tomorrow", "next_shopping", "redraw", "send_shopping", "plan")
 
 
 def _planner_config(hass: HomeAssistant, entry_id: str, title: str) -> dict[str, Any]:
@@ -37,11 +37,7 @@ def _planner_config(hass: HomeAssistant, entry_id: str, title: str) -> dict[str,
         key = entity.unique_id.removeprefix(f"{entry_id}_")
         if key in _KEYS:
             by_key[key] = entity.entity_id
-    return {
-        "title": title,
-        "entities": by_key,
-        "lists": {c: by_key[c] for c in CATEGORIES if c in by_key},
-    }
+    return {"entry_id": entry_id, "title": title, "entities": by_key}
 
 
 async def async_update_panel(

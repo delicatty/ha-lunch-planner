@@ -15,6 +15,7 @@ from pytest_homeassistant_custom_component.common import (
 from homeassistant.config_entries import ConfigEntryState
 from homeassistant.core import HomeAssistant
 from homeassistant.data_entry_flow import FlowResultType
+from homeassistant.exceptions import ServiceValidationError
 from homeassistant.helpers import entity_registry as er
 from homeassistant.util import dt as dt_util
 
@@ -62,10 +63,9 @@ def entity(hass: HomeAssistant, entry: MockConfigEntry, domain: str, key: str) -
 async def add_items(hass: HomeAssistant, entry: MockConfigEntry, category: str, *names: str) -> None:
     for name in names:
         await hass.services.async_call(
-            "todo",
-            "add_item",
-            {"item": name},
-            target={"entity_id": entity(hass, entry, "todo", category)},
+            DOMAIN,
+            "add_meal",
+            {"config_entry_id": entry.entry_id, "category": category, "name": name},
             blocking=True,
         )
 
@@ -119,9 +119,8 @@ async def test_setup_creates_entities_and_first_plan(
     entry = make_entry()
     await setup_entry(hass, entry)
 
-    for category in ("soup", "dish", "protein", "starch", "salad"):
-        assert hass.states.get(entity(hass, entry, "todo", category)).state == "0"
     assert hass.states.get(entity(hass, entry, "calendar", "plan"))
+    assert not hass.states.async_entity_ids("todo")
 
     # Empty database: nothing could be drawn yet.
     assert hass.states.get(entity(hass, entry, "sensor", "tomorrow")).state == "unknown"
@@ -164,18 +163,21 @@ async def test_item_description_and_disabled_items(
     freezer.move_to(local(WEDNESDAY_NOON))
     entry = make_entry(meal_mode="soup_only")
     await setup_entry(hass, entry)
-    soups = entity(hass, entry, "todo", "soup")
     await hass.services.async_call(
-        "todo",
-        "add_item",
-        {"item": "Pomidorowa", "description": "passata, śmietana\nmakaron"},
-        target={"entity_id": soups},
+        DOMAIN,
+        "add_meal",
+        {"category": "soup", "name": "Pomidorowa", "ingredients": "passata, śmietana\nmakaron"},
         blocking=True,
     )
-    await add_items(hass, entry, "soup", "Botwinkowa")
     await hass.services.async_call(
-        "todo", "update_item", {"item": "Botwinkowa", "status": "completed"},
-        target={"entity_id": soups}, blocking=True,
+        DOMAIN, "add_meal", {"category": "soup", "name": "Grzybowa", "active": False}, blocking=True
+    )
+    # November: a soup only in season from May to July is not drawn.
+    await hass.services.async_call(
+        DOMAIN,
+        "add_meal",
+        {"category": "soup", "name": "Botwinkowa", "season_from": 5, "season_to": 7},
+        blocking=True,
     )
     for _ in range(5):
         await hass.services.async_call(DOMAIN, "redraw", {"date": "2026-11-12"}, blocking=True)
@@ -183,6 +185,127 @@ async def test_item_description_and_disabled_items(
         state = hass.states.get(entity(hass, entry, "sensor", "tomorrow"))
         assert state.state == "Zupa pomidorowa"
         assert state.attributes["shopping_items"] == ["passata", "śmietana", "makaron"]
+
+
+async def test_add_meal_updates_by_name_and_remove_meal(hass_pl: HomeAssistant) -> None:
+    hass = hass_pl
+    entry = make_entry()
+    await setup_entry(hass, entry)
+    planner = entry.runtime_data
+    await add_items(hass, entry, "soup", "Pomidorowa")
+    await hass.services.async_call(
+        DOMAIN, "add_meal", {"category": "soup", "name": "pomidorowa", "ingredients": ["passata"]},
+        blocking=True,
+    )
+    assert [m["ingredients"] for m in planner.items["soup"]] == [["passata"]]
+
+    with pytest.raises(ServiceValidationError):
+        await hass.services.async_call(
+            DOMAIN, "add_meal", {"category": "soup", "name": "x", "season_from": 5}, blocking=True
+        )
+    await hass.services.async_call(
+        DOMAIN, "remove_meal", {"category": "soup", "name": "Pomidorowa"}, blocking=True
+    )
+    assert planner.items["soup"] == []
+    with pytest.raises(ServiceValidationError):
+        await hass.services.async_call(
+            DOMAIN, "remove_meal", {"category": "soup", "name": "Pomidorowa"}, blocking=True
+        )
+
+
+async def test_websocket_meal_editing(hass_pl: HomeAssistant, hass_ws_client) -> None:
+    hass = hass_pl
+    entry = make_entry()
+    await setup_entry(hass, entry)
+    client = await hass_ws_client(hass)
+
+    await client.send_json_auto_id({"type": "lunch_planner/meals/subscribe", "entry_id": entry.entry_id})
+    assert (await client.receive_json())["success"]
+    first = await client.receive_json()
+    assert first["event"]["meals"]["soup"] == []
+
+    await client.send_json_auto_id(
+        {
+            "type": "lunch_planner/meals/save",
+            "entry_id": entry.entry_id,
+            "category": "soup",
+            "name": "  Botwinkowa ",
+            "ingredients": ["botwinka", "", "Botwinka", "śmietana"],
+            "season": [5, 7],
+            "active": True,
+        }
+    )
+    update = await client.receive_json()
+    result = await client.receive_json()
+    if "event" in result:  # order of the event and the result is not fixed
+        update, result = result, update
+    assert result["success"]
+    uid = result["result"]["uid"]
+    meal = update["event"]["meals"]["soup"][0]
+    assert meal == {
+        "uid": uid, "name": "Botwinkowa", "ingredients": ["botwinka", "śmietana"],
+        "season": [5, 7], "active": True,
+    }
+
+    # Change it and move it to another category.
+    await client.send_json_auto_id(
+        {
+            "type": "lunch_planner/meals/save", "entry_id": entry.entry_id, "category": "dish",
+            "uid": uid, "name": "Botwinkowa", "season": None, "active": False,
+        }
+    )
+    messages = [await client.receive_json(), await client.receive_json()]
+    event = next(m for m in messages if "event" in m)["event"]["meals"]
+    assert event["soup"] == []
+    assert event["dish"][0]["active"] is False and event["dish"][0]["season"] is None
+
+    await client.send_json_auto_id(
+        {"type": "lunch_planner/meals/save", "entry_id": entry.entry_id, "category": "soup", "name": " "}
+    )
+    assert not (await client.receive_json())["success"]
+
+    await client.send_json_auto_id({"type": "lunch_planner/meals/delete", "entry_id": entry.entry_id, "uid": uid})
+    messages = [await client.receive_json(), await client.receive_json()]
+    assert next(m for m in messages if "event" in m)["event"]["meals"]["dish"] == []
+
+    await client.send_json_auto_id({"type": "lunch_planner/meals/delete", "entry_id": entry.entry_id, "uid": uid})
+    assert not (await client.receive_json())["success"]
+    await client.send_json_auto_id({"type": "lunch_planner/meals/subscribe", "entry_id": "nope"})
+    assert not (await client.receive_json())["success"]
+
+
+async def test_migration_from_todo_lists(hass_pl: HomeAssistant, hass_storage) -> None:
+    """Version 0.2 kept meals as to-do items; they become meals, the lists go away."""
+    hass = hass_pl
+    entry = make_entry()
+    entry.add_to_hass(hass)
+    hass_storage[f"{DOMAIN}.{entry.entry_id}"] = {
+        "version": 1,
+        "key": f"{DOMAIN}.{entry.entry_id}",
+        "data": {
+            "items": {
+                "soup": [
+                    {"uid": "a", "summary": "Botwinkowa", "description": "botwinka\nsezon: 5-7", "done": False},
+                    {"uid": "b", "summary": "Kalafiorowa", "description": "zupa kalafiorowa (mrożonka)", "done": True},
+                ],
+                "dish": [{"uid": "c", "summary": "Spaghetti", "description": "", "done": False}],
+            },
+            "plan": {},
+        },
+    }
+    registry = er.async_get(hass)
+    old = registry.async_get_or_create(
+        "todo", DOMAIN, f"{entry.entry_id}_soup", config_entry=entry, suggested_object_id="obiady_zupy"
+    )
+    await setup_entry(hass, entry)
+
+    soups = entry.runtime_data.items["soup"]
+    assert soups == [
+        {"uid": "a", "name": "Botwinkowa", "ingredients": ["botwinka"], "season": [5, 7], "active": True},
+        {"uid": "b", "name": "Kalafiorowa", "ingredients": ["zupa kalafiorowa (mrożonka)"], "season": None, "active": False},
+    ]
+    assert entry.runtime_data.items["dish"][0]["ingredients"] == []
+    assert registry.async_get(old.entity_id) is None
 
 
 async def test_weekly_draw_and_redraw_button_in_notification(
@@ -325,14 +448,9 @@ async def test_panel_and_hidden_lists(hass_pl: HomeAssistant, hass_client) -> No
     assert panel.sidebar_title == "Obiady"
     planner_config = panel.config["planners"][0]
     assert planner_config["entities"]["plan"] == entity(hass, entry, "calendar", "plan")
-    assert planner_config["lists"] == {
-        c: entity(hass, entry, "todo", c) for c in ("soup", "dish", "protein", "starch", "salad")
-    }
+    assert planner_config["entry_id"] == entry.entry_id
+    assert planner_config["entities"]["redraw"] == entity(hass, entry, "button", "redraw")
     assert panel.config["_panel_custom"]["module_url"].startswith("/lunch_planner_static/panel.js?v=")
-
-    # The database lists are kept out of the To-do panel.
-    registry = er.async_get(hass)
-    assert registry.async_get(entity(hass, entry, "todo", "soup")).hidden_by is er.RegistryEntryHider.INTEGRATION
 
     client = await hass_client()
     response = await client.get("/lunch_planner_static/panel.js")

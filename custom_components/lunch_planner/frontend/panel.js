@@ -1,9 +1,10 @@
 /**
  * Lunch Planner sidebar panel.
  *
- * Built from Home Assistant's own dashboard cards (tile, calendar, markdown,
- * to-do list), so it looks and behaves like the rest of the interface.
- * The Python side passes the entity IDs of every planner in panel.config.
+ * The plan part uses Home Assistant's own cards (tile, calendar). The meal
+ * database is a small editor of its own, built from plain HTML styled with
+ * Home Assistant's theme variables, talking to the integration over the
+ * lunch_planner/meals/* WebSocket commands.
  */
 
 const TEXTS = {
@@ -12,41 +13,76 @@ const TEXTS = {
     database: "Meal database",
     single: "Single dishes",
     composed: "Composed main courses",
-    lists: {
+    categories: {
       soup: "Soup",
       dish: "Main course",
       protein: "Main part",
       starch: "Starchy side",
       salad: "Salad / vegetables",
     },
+    add: "Add",
+    empty: "Nothing here yet.",
+    toBuy: "Buy",
+    draw: "Draw",
+    drawHelp: "Switched off: the meal stays here but is not drawn.",
     redrawConfirm: "Draw all upcoming lunches again? Lunches already shopped for stay.",
-    hint:
-      "Add meals to the lists below. In an item's description write what to buy, " +
-      "one thing per line or separated by commas; with no description its name goes " +
-      "on the shopping list. A `season: 5-7` line limits an item to May–July. " +
-      "A ticked-off item stays here but is not drawn.",
+    addTitle: "Add meal",
+    editTitle: "Edit meal",
+    name: "Name",
+    ingredients: "What to buy",
+    ingredientsHelp: "One thing per line. Empty: the name goes on the shopping list.",
+    season: "Season",
+    allYear: "All year",
+    months: "Only in some months",
+    from: "from",
+    to: "to",
+    cancel: "Cancel",
+    save: "Save",
+    delete: "Delete",
+    deleteConfirm: "Delete this meal?",
+    error: "Could not save",
   },
   pl: {
     plan: "Plan",
     database: "Baza dań",
     single: "Jednoskładnikowe",
     composed: "Wieloskładnikowe",
-    lists: {
+    categories: {
       soup: "Zupa",
       dish: "Drugie danie",
       protein: "Składnik główny",
       starch: "Dodatek skrobiowy",
       salad: "Surówka / warzywa",
     },
+    add: "Dodaj",
+    empty: "Jeszcze nic tu nie ma.",
+    toBuy: "Kupić",
+    draw: "Losuj",
+    drawHelp: "Wyłączone: danie zostaje w bazie, ale nie jest losowane.",
     redrawConfirm:
       "Wylosować ponownie wszystkie nadchodzące obiady? Te, na które już zrobiono zakupy, zostaną.",
-    hint:
-      "Dodawaj dania do list poniżej. W opisie pozycji wpisz, co kupić: każdą rzecz " +
-      "w osobnej linii albo po przecinku. Bez opisu na listę zakupów trafia nazwa. " +
-      "Linia `sezon: 5-7` ogranicza pozycję do maja–lipca. Odhaczona pozycja zostaje " +
-      "w bazie, ale nie jest losowana.",
+    addTitle: "Dodaj danie",
+    editTitle: "Edytuj danie",
+    name: "Nazwa",
+    ingredients: "Co kupić",
+    ingredientsHelp: "Każda rzecz w osobnej linii. Puste: na listę zakupów trafia nazwa.",
+    season: "Sezon",
+    allYear: "Cały rok",
+    months: "Tylko w wybranych miesiącach",
+    from: "od",
+    to: "do",
+    cancel: "Anuluj",
+    save: "Zapisz",
+    delete: "Usuń",
+    deleteConfirm: "Usunąć to danie?",
+    error: "Nie udało się zapisać",
   },
 };
+
+const GROUPS = [
+  ["single", ["soup", "dish"], "two"],
+  ["composed", ["protein", "starch", "salad"], "three"],
+];
 
 const STYLE = `
   :host {
@@ -54,6 +90,7 @@ const STYLE = `
     min-height: 100vh;
     background: var(--primary-background-color);
     color: var(--primary-text-color);
+    font-family: var(--ha-font-family-body, Roboto, sans-serif);
   }
   .toolbar {
     display: flex;
@@ -68,58 +105,79 @@ const STYLE = `
     top: 0;
     z-index: 2;
   }
-  .content {
-    max-width: 1280px;
-    margin: 0 auto;
-    padding: 16px;
-    box-sizing: border-box;
+  .content { max-width: 1280px; margin: 0 auto; padding: 16px; box-sizing: border-box; }
+  h1 { font-size: 22px; font-weight: 500; margin: 8px 4px 4px; }
+  h2 { font-size: 18px; font-weight: 500; margin: 24px 4px 12px; }
+  h3 { font-size: 16px; font-weight: 500; margin: 20px 4px 8px; color: var(--secondary-text-color); }
+  .plan { display: grid; grid-template-columns: minmax(280px, 1fr) minmax(320px, 2fr); gap: 16px; align-items: start; }
+  .stack { display: grid; gap: 8px; }
+  .lists { display: grid; gap: 16px; align-items: start; }
+  .lists.two { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .lists.three { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .card {
+    background: var(--card-background-color, var(--ha-card-background, #fff));
+    border-radius: var(--ha-card-border-radius, 12px);
+    border: var(--ha-card-border-width, 1px) solid var(--ha-card-border-color, var(--divider-color, #e0e0e0));
+    box-shadow: var(--ha-card-box-shadow, none);
+    overflow: hidden;
   }
-  h1 {
-    font-size: 22px;
-    font-weight: 500;
-    margin: 8px 4px 4px;
+  .card-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 12px 8px 8px 16px; font-size: 18px; font-weight: 500;
   }
-  h2 {
-    font-size: 18px;
-    font-weight: 500;
-    margin: 24px 4px 12px;
+  button {
+    font: inherit; cursor: pointer; border-radius: 18px; border: none;
+    padding: 6px 14px; font-size: 14px; font-weight: 500;
   }
-  .plan {
-    display: grid;
-    grid-template-columns: minmax(280px, 1fr) minmax(320px, 2fr);
-    gap: 16px;
-    align-items: start;
+  .text-button { background: none; color: var(--primary-color); }
+  .text-button:hover { background: rgba(var(--rgb-primary-color, 3, 169, 244), 0.1); }
+  .primary { background: var(--primary-color); color: var(--text-primary-color, #fff); }
+  .danger { background: none; color: var(--error-color, #db4437); margin-right: auto; }
+  .meal {
+    display: flex; align-items: center; gap: 12px; padding: 10px 12px 10px 16px;
+    border-top: 1px solid var(--divider-color, #e0e0e0); cursor: pointer;
   }
-  .stack {
-    display: grid;
-    gap: 8px;
+  .meal:hover { background: var(--secondary-background-color, #f5f5f5); }
+  .meal.off .name, .meal.off .details { opacity: 0.5; }
+  .meal-text { flex: 1; min-width: 0; }
+  .name { font-size: 15px; }
+  .details { font-size: 12px; color: var(--secondary-text-color); margin-top: 2px; overflow-wrap: anywhere; }
+  .chip {
+    display: inline-block; font-size: 11px; padding: 1px 8px; margin-left: 6px; border-radius: 10px;
+    background: rgba(var(--rgb-primary-color, 3, 169, 244), 0.15); color: var(--primary-color);
+    vertical-align: middle;
   }
-  h3 {
-    font-size: 16px;
-    font-weight: 500;
-    margin: 20px 4px 8px;
-    color: var(--secondary-text-color);
+  .empty { padding: 12px 16px 16px; color: var(--secondary-text-color); font-size: 14px; border-top: 1px solid var(--divider-color, #e0e0e0); }
+  .switch { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--secondary-text-color); cursor: pointer; }
+  .switch input { width: 34px; height: 20px; accent-color: var(--primary-color); cursor: pointer; margin: 0; }
+  dialog {
+    border: none; border-radius: var(--ha-dialog-border-radius, 24px); padding: 0;
+    width: min(480px, calc(100vw - 32px));
+    background: var(--card-background-color, #fff); color: var(--primary-text-color);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
   }
-  .lists {
-    display: grid;
-    gap: 16px;
-    align-items: start;
+  dialog::backdrop { background: rgba(0, 0, 0, 0.4); }
+  form { padding: 24px; display: grid; gap: 16px; }
+  .dialog-title { font-size: 22px; margin: 0; }
+  label.field { display: grid; gap: 4px; font-size: 13px; color: var(--secondary-text-color); }
+  input[type="text"], textarea, select {
+    font: inherit; font-size: 15px; color: var(--primary-text-color);
+    background: var(--input-fill-color, var(--secondary-background-color, #f5f5f5));
+    border: none; border-bottom: 1px solid var(--input-idle-line-color, var(--divider-color, #999));
+    border-radius: 4px 4px 0 0; padding: 10px 12px; box-sizing: border-box; width: 100%;
   }
-  .lists.two {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-  .lists.three {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
+  input[type="text"]:focus, textarea:focus, select:focus { outline: none; border-bottom: 2px solid var(--primary-color); }
+  textarea { min-height: 96px; resize: vertical; }
+  .hint { font-size: 12px; color: var(--secondary-text-color); }
+  .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .row select { width: auto; flex: 1; min-width: 120px; }
+  .radio { display: flex; align-items: center; gap: 8px; font-size: 15px; color: var(--primary-text-color); cursor: pointer; }
+  .radio input { accent-color: var(--primary-color); margin: 0; }
+  .actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 4px; }
+  .error { color: var(--error-color, #db4437); font-size: 13px; }
   @media (max-width: 760px) {
-    .plan,
-    .lists.two,
-    .lists.three {
-      grid-template-columns: 1fr;
-    }
-    .content {
-      padding: 8px;
-    }
+    .plan, .lists.two, .lists.three { grid-template-columns: 1fr; }
+    .content { padding: 8px; }
   }
 `;
 
@@ -146,6 +204,21 @@ async function loadCardHelpers() {
   return window.loadCardHelpers();
 }
 
+function el(tag, attrs = {}, ...children) {
+  const node = document.createElement(tag);
+  for (const [key, value] of Object.entries(attrs)) {
+    if (key === "class") node.className = value;
+    else if (key.startsWith("on")) node.addEventListener(key.slice(2), value);
+    else if (value === true) node.setAttribute(key, "");
+    else if (value !== false && value != null) node.setAttribute(key, value);
+  }
+  for (const child of children.flat()) {
+    if (child == null || child === false) continue;
+    node.append(child instanceof Node ? child : document.createTextNode(String(child)));
+  }
+  return node;
+}
+
 class LunchPlannerPanel extends HTMLElement {
   constructor() {
     super();
@@ -154,13 +227,17 @@ class LunchPlannerPanel extends HTMLElement {
     this._menuButton = null;
     this._built = false;
     this._building = false;
+    this._meals = {}; // entry_id -> {category: [meal]}
+    this._mealBoxes = {}; // entry_id -> element holding the meal lists
+    this._unsubs = [];
   }
 
   set hass(hass) {
+    const first = !this._hass;
     this._hass = hass;
     for (const card of this._cards) card.hass = hass;
     if (this._menuButton) this._menuButton.hass = hass;
-    this._maybeBuild();
+    if (first) this._maybeBuild();
   }
 
   get hass() {
@@ -181,9 +258,29 @@ class LunchPlannerPanel extends HTMLElement {
     }
   }
 
+  disconnectedCallback() {
+    this._unsubscribe();
+  }
+
+  connectedCallback() {
+    if (this._built) this._subscribe();
+  }
+
   _texts() {
     const lang = (this._hass && this._hass.language) || "en";
     return lang.toLowerCase().startsWith("pl") ? TEXTS.pl : TEXTS.en;
+  }
+
+  _monthName(month) {
+    const lang = (this._hass && this._hass.language) || "en";
+    return new Intl.DateTimeFormat(lang, { month: "long" }).format(new Date(2026, month - 1, 1));
+  }
+
+  _monthShort(month) {
+    const lang = (this._hass && this._hass.language) || "en";
+    return new Intl.DateTimeFormat(lang, { month: "short" })
+      .format(new Date(2026, month - 1, 1))
+      .replace(".", "");
   }
 
   /** Entity name without the planner (device) name in front of it. */
@@ -200,9 +297,35 @@ class LunchPlannerPanel extends HTMLElement {
       const helpers = await loadCardHelpers();
       this._render(helpers);
       this._built = true;
+      this._subscribe();
     } finally {
       this._building = false;
     }
+  }
+
+  async _subscribe() {
+    this._unsubscribe();
+    for (const planner of this._config.planners || []) {
+      const unsub = await this._hass.connection.subscribeMessage(
+        (message) => {
+          this._meals[planner.entry_id] = message.meals;
+          this._renderMeals(planner.entry_id);
+        },
+        { type: "lunch_planner/meals/subscribe", entry_id: planner.entry_id },
+      );
+      this._unsubs.push(unsub);
+    }
+  }
+
+  _unsubscribe() {
+    for (const unsub of this._unsubs) {
+      try {
+        unsub();
+      } catch (err) {
+        /* connection already closed */
+      }
+    }
+    this._unsubs = [];
   }
 
   _card(helpers, config, parent) {
@@ -218,131 +341,252 @@ class LunchPlannerPanel extends HTMLElement {
     const root = this.shadowRoot;
     root.innerHTML = "";
     this._cards = [];
+    this._mealBoxes = {};
 
-    const style = document.createElement("style");
-    style.textContent = STYLE;
-    root.appendChild(style);
+    root.appendChild(el("style", {}, STYLE));
 
-    const toolbar = document.createElement("div");
-    toolbar.className = "toolbar";
     this._menuButton = document.createElement("ha-menu-button");
     this._menuButton.hass = this._hass;
     this._menuButton.narrow = this._narrow;
-    toolbar.appendChild(this._menuButton);
-    const title = document.createElement("div");
-    title.textContent = this._config.title;
-    toolbar.appendChild(title);
-    root.appendChild(toolbar);
+    root.appendChild(el("div", { class: "toolbar" }, this._menuButton, el("div", {}, this._config.title)));
 
-    const content = document.createElement("div");
-    content.className = "content";
+    const content = el("div", { class: "content" });
     root.appendChild(content);
+
+    this._dialog = el("dialog");
+    root.appendChild(this._dialog);
 
     const planners = this._config.planners || [];
     for (const planner of planners) {
       const e = planner.entities || {};
+      if (planners.length > 1) content.appendChild(el("h1", {}, planner.title));
 
-      if (planners.length > 1) {
-        const heading = document.createElement("h1");
-        heading.textContent = planner.title;
-        content.appendChild(heading);
-      }
+      content.appendChild(el("h2", {}, texts.plan));
+      const stack = el("div", { class: "stack" });
+      const calendarBox = el("div");
+      content.appendChild(el("div", { class: "plan" }, stack, calendarBox));
 
-      const planHeading = document.createElement("h2");
-      planHeading.textContent = texts.plan;
-      content.appendChild(planHeading);
-
-      const plan = document.createElement("div");
-      plan.className = "plan";
-      content.appendChild(plan);
-
-      const stack = document.createElement("div");
-      stack.className = "stack";
-      plan.appendChild(stack);
       for (const key of ["today", "tomorrow", "next_shopping"]) {
         if (e[key]) {
-          this._card(
-            helpers,
-            { type: "tile", entity: e[key], name: this._name(e[key], planner.title) },
-            stack,
-          );
+          this._card(helpers, { type: "tile", entity: e[key], name: this._name(e[key], planner.title) }, stack);
         }
       }
-      if (e.redraw) {
+      for (const [key, confirm] of [["redraw", texts.redrawConfirm], ["send_shopping", null]]) {
+        if (!e[key]) continue;
+        const tapAction = {
+          action: "perform-action",
+          perform_action: "button.press",
+          target: { entity_id: e[key] },
+        };
+        if (confirm) tapAction.confirmation = { text: confirm };
         this._card(
           helpers,
-          {
-            type: "tile",
-            entity: e.redraw,
-            name: this._name(e.redraw, planner.title),
-            show_entity_picture: false,
-            hide_state: true,
-            tap_action: {
-              action: "perform-action",
-              perform_action: "button.press",
-              target: { entity_id: e.redraw },
-              confirmation: { text: texts.redrawConfirm },
-            },
-          },
+          { type: "tile", entity: e[key], name: this._name(e[key], planner.title), hide_state: true, tap_action: tapAction },
           stack,
         );
       }
-      if (e.send_shopping) {
-        this._card(
-          helpers,
-          {
-            type: "tile",
-            entity: e.send_shopping,
-            name: this._name(e.send_shopping, planner.title),
-            hide_state: true,
-            tap_action: {
-              action: "perform-action",
-              perform_action: "button.press",
-              target: { entity_id: e.send_shopping },
-            },
-          },
-          stack,
-        );
-      }
-
       if (e.plan) {
-        const calendarBox = document.createElement("div");
-        plan.appendChild(calendarBox);
-        this._card(
-          helpers,
-          { type: "calendar", entities: [e.plan], initial_view: "listWeek" },
-          calendarBox,
-        );
+        this._card(helpers, { type: "calendar", entities: [e.plan], initial_view: "listWeek" }, calendarBox);
       }
 
-      const dbHeading = document.createElement("h2");
-      dbHeading.textContent = texts.database;
-      content.appendChild(dbHeading);
-      this._card(helpers, { type: "markdown", content: texts.hint }, content);
+      content.appendChild(el("h2", {}, texts.database));
+      const box = el("div");
+      content.appendChild(box);
+      this._mealBoxes[planner.entry_id] = box;
+      this._renderMeals(planner.entry_id);
+    }
+  }
 
-      const lists = planner.lists || {};
-      const groups = [
-        [texts.single, ["soup", "dish"], "two"],
-        [texts.composed, ["protein", "starch", "salad"], "three"],
-      ];
-      for (const [label, categories, columns] of groups) {
-        const present = categories.filter((c) => lists[c]);
-        if (!present.length) continue;
-        const subheading = document.createElement("h3");
-        subheading.textContent = label;
-        content.appendChild(subheading);
-        const grid = document.createElement("div");
-        grid.className = `lists ${columns}`;
-        content.appendChild(grid);
-        for (const category of present) {
-          this._card(
-            helpers,
-            { type: "todo-list", entity: lists[category], title: texts.lists[category] },
-            grid,
-          );
-        }
+  _renderMeals(entryId) {
+    const box = this._mealBoxes[entryId];
+    if (!box) return;
+    const texts = this._texts();
+    const meals = this._meals[entryId] || {};
+    box.replaceChildren();
+    for (const [groupKey, categories, columns] of GROUPS) {
+      box.appendChild(el("h3", {}, texts[groupKey]));
+      const grid = el("div", { class: `lists ${columns}` });
+      box.appendChild(grid);
+      for (const category of categories) {
+        grid.appendChild(this._categoryCard(entryId, category, meals[category] || []));
       }
     }
+  }
+
+  _seasonLabel(season) {
+    if (!season) return null;
+    const [start, end] = season;
+    return start === end ? this._monthShort(start) : `${this._monthShort(start)}–${this._monthShort(end)}`;
+  }
+
+  _categoryCard(entryId, category, meals) {
+    const texts = this._texts();
+    const card = el(
+      "div",
+      { class: "card" },
+      el(
+        "div",
+        { class: "card-header" },
+        el("span", {}, texts.categories[category]),
+        el("button", { class: "text-button", onclick: () => this._openDialog(entryId, category, null) }, `+ ${texts.add}`),
+      ),
+    );
+    if (!meals.length) {
+      card.appendChild(el("div", { class: "empty" }, texts.empty));
+      return card;
+    }
+    for (const meal of meals) {
+      const season = this._seasonLabel(meal.season);
+      const toggle = el("input", {
+        type: "checkbox",
+        role: "switch",
+        checked: meal.active,
+        title: texts.drawHelp,
+        onchange: (ev) => this._save(entryId, category, { ...meal, active: ev.target.checked }),
+      });
+      card.appendChild(
+        el(
+          "div",
+          { class: `meal${meal.active ? "" : " off"}`, onclick: () => this._openDialog(entryId, category, meal) },
+          el(
+            "div",
+            { class: "meal-text" },
+            el("div", { class: "name" }, meal.name, season ? el("span", { class: "chip" }, season) : null),
+            meal.ingredients.length
+              ? el("div", { class: "details" }, `${texts.toBuy}: ${meal.ingredients.join(", ")}`)
+              : null,
+          ),
+          el(
+            "label",
+            { class: "switch", title: texts.drawHelp, onclick: (ev) => ev.stopPropagation() },
+            toggle,
+            texts.draw,
+          ),
+        ),
+      );
+    }
+    return card;
+  }
+
+  async _save(entryId, category, meal) {
+    const message = {
+      type: "lunch_planner/meals/save",
+      entry_id: entryId,
+      category,
+      name: meal.name,
+      ingredients: meal.ingredients,
+      season: meal.season,
+      active: meal.active,
+    };
+    if (meal.uid) message.uid = meal.uid;
+    return this._hass.callWS(message);
+  }
+
+  _openDialog(entryId, category, meal) {
+    const texts = this._texts();
+    const dialog = this._dialog;
+    const season = (meal && meal.season) || null;
+
+    const name = el("input", { type: "text", required: true, value: meal ? meal.name : "" });
+    name.value = meal ? meal.name : "";
+    const ingredients = el("textarea", { rows: 4 });
+    ingredients.value = meal ? meal.ingredients.join("\n") : "";
+
+    const monthSelect = (selected) =>
+      el(
+        "select",
+        {},
+        Array.from({ length: 12 }, (_, i) =>
+          el("option", { value: i + 1, selected: i + 1 === selected }, this._monthName(i + 1)),
+        ),
+      );
+    const from = monthSelect(season ? season[0] : 5);
+    const to = monthSelect(season ? season[1] : 9);
+    const radioName = `season-${Date.now()}`;
+    const allYear = el("input", { type: "radio", name: radioName, checked: !season });
+    const someMonths = el("input", { type: "radio", name: radioName, checked: !!season });
+    const monthsRow = el("div", { class: "row" }, texts.from, from, texts.to, to);
+    const syncMonths = () => {
+      monthsRow.style.display = someMonths.checked ? "" : "none";
+    };
+    allYear.addEventListener("change", syncMonths);
+    someMonths.addEventListener("change", syncMonths);
+    syncMonths();
+
+    const active = el("input", { type: "checkbox", role: "switch", checked: meal ? meal.active : true });
+    const error = el("div", { class: "error" });
+    const saveButton = el("button", { class: "primary", type: "submit" }, texts.save);
+    const syncSave = () => {
+      saveButton.disabled = !name.value.trim();
+      saveButton.style.opacity = saveButton.disabled ? "0.5" : "";
+    };
+    name.addEventListener("input", syncSave);
+    syncSave();
+
+    const close = () => dialog.close();
+    const form = el(
+      "form",
+      {
+        method: "dialog",
+        onsubmit: async (ev) => {
+          ev.preventDefault();
+          if (!name.value.trim()) return;
+          try {
+            await this._save(entryId, category, {
+              uid: meal ? meal.uid : undefined,
+              name: name.value,
+              ingredients: ingredients.value.split("\n").map((s) => s.trim()).filter(Boolean),
+              season: someMonths.checked ? [Number(from.value), Number(to.value)] : null,
+              active: active.checked,
+            });
+            close();
+          } catch (err) {
+            error.textContent = `${texts.error}: ${err.message || err.code || err}`;
+          }
+        },
+      },
+      el("h2", { class: "dialog-title" }, `${meal ? texts.editTitle : texts.addTitle} · ${texts.categories[category]}`),
+      el("label", { class: "field" }, texts.name, name),
+      el("label", { class: "field" }, texts.ingredients, ingredients, el("span", { class: "hint" }, texts.ingredientsHelp)),
+      el(
+        "div",
+        { class: "field" },
+        el("div", { class: "hint" }, texts.season),
+        el("label", { class: "radio" }, allYear, texts.allYear),
+        el("label", { class: "radio" }, someMonths, texts.months),
+        monthsRow,
+      ),
+      el("label", { class: "radio" }, active, texts.draw, el("span", { class: "hint" }, `(${texts.drawHelp})`)),
+      error,
+      el(
+        "div",
+        { class: "actions" },
+        meal
+          ? el(
+              "button",
+              {
+                class: "danger",
+                type: "button",
+                onclick: async () => {
+                  if (!confirm(texts.deleteConfirm)) return;
+                  try {
+                    await this._hass.callWS({ type: "lunch_planner/meals/delete", entry_id: entryId, uid: meal.uid });
+                    close();
+                  } catch (err) {
+                    error.textContent = `${texts.error}: ${err.message || err.code || err}`;
+                  }
+                },
+              },
+              texts.delete,
+            )
+          : null,
+        el("button", { class: "text-button", type: "button", onclick: close }, texts.cancel),
+        saveButton,
+      ),
+    );
+    dialog.replaceChildren(form);
+    dialog.showModal();
+    name.focus();
   }
 }
 

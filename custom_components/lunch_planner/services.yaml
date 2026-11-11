@@ -14,3 +14,59 @@ send_shopping_list:
       selector:
         config_entry:
           integration: lunch_planner
+
+add_meal:
+  fields:
+    config_entry_id:
+      selector:
+        config_entry:
+          integration: lunch_planner
+    category:
+      required: true
+      selector:
+        select:
+          options: [soup, dish, protein, starch, salad]
+          translation_key: category
+    name:
+      required: true
+      example: Tomato soup
+      selector:
+        text:
+    ingredients:
+      example: "passata, cream, pasta"
+      selector:
+        text:
+          multiline: true
+    season_from:
+      selector:
+        number:
+          min: 1
+          max: 12
+          mode: box
+    season_to:
+      selector:
+        number:
+          min: 1
+          max: 12
+          mode: box
+    active:
+      default: true
+      selector:
+        boolean:
+
+remove_meal:
+  fields:
+    config_entry_id:
+      selector:
+        config_entry:
+          integration: lunch_planner
+    category:
+      required: true
+      selector:
+        select:
+          options: [soup, dish, protein, starch, salad]
+          translation_key: category
+    name:
+      required: true
+      selector:
+        text:

@@ -3,21 +3,26 @@
 from __future__ import annotations
 
 from datetime import date
+from typing import Any
 
 import voluptuous as vol
 
 from homeassistant.config_entries import ConfigEntry, ConfigEntryState
 from homeassistant.core import HomeAssistant, ServiceCall, ServiceResponse, SupportsResponse
 from homeassistant.exceptions import ServiceValidationError
-from homeassistant.helpers import config_validation as cv
+from homeassistant.helpers import config_validation as cv, entity_registry as er
 from homeassistant.helpers.typing import ConfigType
 
+from . import websocket
 from .const import (
     ATTR_CONFIG_ENTRY_ID,
     ATTR_DATE,
+    CATEGORIES,
     DOMAIN,
     PLATFORMS,
+    SERVICE_ADD_MEAL,
     SERVICE_REDRAW,
+    SERVICE_REMOVE_MEAL,
     SERVICE_SEND_SHOPPING_LIST,
 )
 from .manager import LunchPlanner
@@ -34,6 +39,34 @@ _REDRAW_SCHEMA = vol.Schema(
     }
 )
 _SHOPPING_SCHEMA = vol.Schema({vol.Optional(ATTR_CONFIG_ENTRY_ID): cv.string})
+
+
+def _text_list(value: Any) -> list[str]:
+    """Ingredients as a list, or as text with one per line or comma-separated."""
+    if isinstance(value, str):
+        return [p.strip() for line in value.splitlines() for p in line.split(",") if p.strip()]
+    return [str(v) for v in cv.ensure_list(value)]
+
+
+_MONTH = vol.All(vol.Coerce(int), vol.Range(min=1, max=12))
+_ADD_MEAL_SCHEMA = vol.Schema(
+    {
+        vol.Optional(ATTR_CONFIG_ENTRY_ID): cv.string,
+        vol.Required("category"): vol.In(CATEGORIES),
+        vol.Required("name"): cv.string,
+        vol.Optional("ingredients", default=[]): _text_list,
+        vol.Optional("season_from"): _MONTH,
+        vol.Optional("season_to"): _MONTH,
+        vol.Optional("active", default=True): cv.boolean,
+    }
+)
+_REMOVE_MEAL_SCHEMA = vol.Schema(
+    {
+        vol.Optional(ATTR_CONFIG_ENTRY_ID): cv.string,
+        vol.Required("category"): vol.In(CATEGORIES),
+        vol.Required("name"): cv.string,
+    }
+)
 
 
 def _planner_for(hass: HomeAssistant, call: ServiceCall) -> LunchPlanner:
@@ -66,6 +99,37 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
         sent = await _planner_for(hass, call).async_send_shopping()
         return {"sent": sent}
 
+    async def add_meal(call: ServiceCall) -> None:
+        planner = _planner_for(hass, call)
+        start, end = call.data.get("season_from"), call.data.get("season_to")
+        if (start is None) != (end is None):
+            raise ServiceValidationError(
+                translation_domain=DOMAIN, translation_key="season_incomplete"
+            )
+        existing = planner.find_by_name(call.data["category"], call.data["name"])
+        planner.save_meal(
+            call.data["category"],
+            call.data["name"],
+            call.data["ingredients"],
+            (start, end) if start is not None else None,
+            call.data["active"],
+            uid=existing["uid"] if existing else None,
+        )
+
+    async def remove_meal(call: ServiceCall) -> None:
+        planner = _planner_for(hass, call)
+        meal = planner.find_by_name(call.data["category"], call.data["name"])
+        if meal is None:
+            raise ServiceValidationError(
+                translation_domain=DOMAIN,
+                translation_key="meal_not_found",
+                translation_placeholders={"name": call.data["name"]},
+            )
+        planner.delete_meal(meal["uid"])
+
+    hass.services.async_register(DOMAIN, SERVICE_ADD_MEAL, add_meal, _ADD_MEAL_SCHEMA)
+    hass.services.async_register(DOMAIN, SERVICE_REMOVE_MEAL, remove_meal, _REMOVE_MEAL_SCHEMA)
+    websocket.async_register(hass)
     hass.services.async_register(
         DOMAIN, SERVICE_REDRAW, redraw, _REDRAW_SCHEMA, supports_response=SupportsResponse.OPTIONAL
     )
@@ -84,12 +148,21 @@ async def async_setup_entry(hass: HomeAssistant, entry: LunchPlannerConfigEntry)
     planner = LunchPlanner(hass, entry)
     await planner.async_load()
     entry.runtime_data = planner
+    _remove_old_todo_entities(hass, entry)
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     planner.async_start()
     entry.async_on_unload(planner.async_stop)
     entry.async_on_unload(entry.add_update_listener(_async_options_updated))
     await async_update_panel(hass, loading=entry.entry_id)
     return True
+
+
+def _remove_old_todo_entities(hass: HomeAssistant, entry: LunchPlannerConfigEntry) -> None:
+    """Version 0.2 kept the meal database in to-do lists; the panel replaced them."""
+    registry = er.async_get(hass)
+    for entity in er.async_entries_for_config_entry(registry, entry.entry_id):
+        if entity.domain == "todo":
+            registry.async_remove(entity.entity_id)
 
 
 async def _async_options_updated(hass: HomeAssistant, entry: LunchPlannerConfigEntry) -> None:

@@ -59,6 +59,47 @@ def _weekday_numbers(names: list[str]) -> list[int]:
     return [WEEKDAYS.index(n) for n in names if n in WEEKDAYS]
 
 
+def _clean_meal(meal: dict[str, Any]) -> dict[str, Any]:
+    """Normalise a meal: trimmed name, unique non-empty ingredients, valid season."""
+    name = str(meal.get("name", "")).strip()
+    if not name:
+        raise HomeAssistantError("A meal needs a name")
+    ingredients: list[str] = []
+    for raw in meal.get("ingredients") or []:
+        item = str(raw).strip()
+        if item and item.casefold() not in (i.casefold() for i in ingredients):
+            ingredients.append(item)
+    season = meal.get("season")
+    if season:
+        start, end = (int(m) for m in season)
+        if not (1 <= start <= 12 and 1 <= end <= 12):
+            raise HomeAssistantError("Season months must be 1-12")
+        season = [start, end]
+    else:
+        season = None
+    return {
+        "uid": meal["uid"],
+        "name": name,
+        "ingredients": ingredients,
+        "season": season,
+        "active": bool(meal.get("active", True)),
+    }
+
+
+def _migrate_meal(meal: dict[str, Any]) -> dict[str, Any]:
+    """Convert a stored to-do item (version 0.2) into a meal."""
+    if "summary" not in meal:
+        return meal
+    item = planner.parse_item(meal["uid"], meal["summary"], meal.get("description"))
+    return {
+        "uid": meal["uid"],
+        "name": item.name,
+        "ingredients": list(item.ingredients),
+        "season": list(item.season) if item.season else None,
+        "active": not meal.get("done", False),
+    }
+
+
 def _parse_time(value: str) -> tuple[int, int, int]:
     parts = [int(p) for p in str(value).split(":")] + [0, 0]
     return parts[0], parts[1], parts[2]
@@ -112,10 +153,15 @@ class LunchPlanner:
     async def async_load(self) -> None:
         data = await self._store.async_load() or {}
         stored_items = data.get("items", {})
-        self.items = {c: list(stored_items.get(c, [])) for c in CATEGORIES}
+        self.items = {
+            c: [_migrate_meal(m) for m in stored_items.get(c, [])] for c in CATEGORIES
+        }
+        migrated = any("summary" in m for c in stored_items.values() for m in c)
         self.plan = dict(data.get("plan", {}))
         self.shopping_sent_on = data.get("shopping_sent_on")
         self.shopping_pending_on = data.get("shopping_pending_on")
+        if migrated:
+            self._schedule_save()
 
     @callback
     def _schedule_save(self) -> None:
@@ -154,58 +200,65 @@ class LunchPlanner:
         for update in list(self._listeners):
             update()
 
-    # -- database (to-do lists) -------------------------------------------
+    # -- meal database -----------------------------------------------------
+
+    def _find(self, uid: str) -> tuple[str, dict[str, Any]]:
+        for category, meals in self.items.items():
+            for meal in meals:
+                if meal["uid"] == uid:
+                    return category, meal
+        raise HomeAssistantError(f"Meal {uid} not found")
 
     @callback
-    def add_item(self, category: str, summary: str, description: str | None, done: bool) -> None:
-        self.items[category].append(
-            {
-                "uid": uuid.uuid4().hex,
-                "summary": summary,
-                "description": description or "",
-                "done": done,
-            }
+    def save_meal(
+        self,
+        category: str,
+        name: str,
+        ingredients: list[str],
+        season: tuple[int, int] | list[int] | None,
+        active: bool,
+        uid: str | None = None,
+    ) -> str:
+        """Add a meal, or update the meal ``uid`` (moving it to ``category``)."""
+        meal = _clean_meal(
+            {"uid": uid or uuid.uuid4().hex, "name": name, "ingredients": ingredients,
+             "season": season, "active": active}
         )
-        self._changed()
-
-    @callback
-    def update_item(
-        self, category: str, uid: str, summary: str, description: str | None, done: bool
-    ) -> None:
-        for item in self.items[category]:
-            if item["uid"] == uid:
-                item.update(summary=summary, description=description or "", done=done)
+        if uid is not None:
+            old_category, old = self._find(uid)
+            if old_category == category:
+                old.update(meal)
                 self._changed()
-                return
-        raise HomeAssistantError(f"Item {uid} not found")
+                return uid
+            self.items[old_category].remove(old)
+        self.items[category].append(meal)
+        self._changed()
+        return meal["uid"]
 
     @callback
-    def delete_items(self, category: str, uids: list[str]) -> None:
-        self.items[category] = [i for i in self.items[category] if i["uid"] not in uids]
+    def delete_meal(self, uid: str) -> None:
+        category, meal = self._find(uid)
+        self.items[category].remove(meal)
         self._changed()
 
-    @callback
-    def move_item(self, category: str, uid: str, previous_uid: str | None) -> None:
-        items = self.items[category]
-        moved = next((i for i in items if i["uid"] == uid), None)
-        if moved is None:
-            raise HomeAssistantError(f"Item {uid} not found")
-        items.remove(moved)
-        index = 0
-        if previous_uid:
-            index = next(n for n, i in enumerate(items) if i["uid"] == previous_uid) + 1
-        items.insert(index, moved)
-        self._changed()
+    def find_by_name(self, category: str, name: str) -> dict[str, Any] | None:
+        key = name.strip().casefold()
+        return next((m for m in self.items[category] if m["name"].casefold() == key), None)
 
     def catalog(self) -> dict[str, list[planner.Item]]:
-        """The database as planner items; ticked-off items are excluded."""
+        """The database as planner items; meals switched off are excluded."""
         return {
             category: [
-                planner.parse_item(i["uid"], i["summary"], i["description"])
-                for i in items
-                if not i["done"]
+                planner.Item(
+                    uid=m["uid"],
+                    name=m["name"],
+                    ingredients=tuple(m["ingredients"]),
+                    season=tuple(m["season"]) if m["season"] else None,
+                )
+                for m in meals
+                if m["active"]
             ]
-            for category, items in self.items.items()
+            for category, meals in self.items.items()
         }
 
     # -- plan ------------------------------------------------------------

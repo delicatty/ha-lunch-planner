@@ -1,12 +1,5 @@
 {
   "entity": {
-    "todo": {
-      "soup": { "default": "mdi:bowl-mix" },
-      "dish": { "default": "mdi:pasta" },
-      "protein": { "default": "mdi:food-steak" },
-      "starch": { "default": "mdi:french-fries" },
-      "salad": { "default": "mdi:leaf" }
-    },
     "calendar": {
       "plan": { "default": "mdi:calendar-star" }
     },
@@ -22,6 +15,8 @@
   },
   "services": {
     "redraw": { "service": "mdi:dice-multiple" },
-    "send_shopping_list": { "service": "mdi:cart-arrow-right" }
+    "send_shopping_list": { "service": "mdi:cart-arrow-right" },
+    "add_meal": { "service": "mdi:food-variant" },
+    "remove_meal": { "service": "mdi:food-off" }
   }
 }
