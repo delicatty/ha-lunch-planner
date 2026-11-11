@@ -1,6 +1,10 @@
 {
   "domain": "lunch_planner",
   "name": "Lunch Planner",
+  "categories": [
+    "productivity_information.shopping_groceries",
+    "productivity_information.calendars_todos"
+  ],
   "codeowners": ["@delicatty"],
   "config_flow": true,
   "dependencies": ["calendar", "frontend", "http", "panel_custom", "todo"],
