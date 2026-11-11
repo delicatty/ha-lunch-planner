@@ -70,13 +70,25 @@ Their texts (title, "To buy:", button) are inputs, so write them in your languag
 
 ## Entities
 
+All entities belong to one device per planner, named after the planner
+(`Lunch planner` by default). Find them under **Settings → Devices & services
+→ Devices**.
+
 | Entity | What it is |
 |---|---|
-| `calendar.*_lunch_plan` | The drawn plan, one all-day event per lunch |
-| `sensor.*_today_s_lunch`, `sensor.*_tomorrow_s_lunch` | The lunch; parts and things to buy in attributes |
-| `sensor.*_next_shopping` | Date of the next shopping day (today or later) |
-| `sensor.*_to_buy` | What to buy on that day, as text (cut at 255 characters); attributes `shopping_date`, `shopping_items` (the whole list), `meals`, `summary` (one line per lunch) |
-| `button.*_draw_upcoming_lunches_again` | Draws again all upcoming lunches whose shopping day has not come |
+| Lunch plan (calendar) | The drawn plan, one all-day event per lunch |
+| Today's lunch, Tomorrow's lunch (sensors) | The lunch; parts and things to buy in attributes |
+| Next shopping (sensor) | Date of the next shopping day (today or later) |
+| To buy (sensor) | What to buy on that day, as text (cut at 255 characters); attributes `shopping_date`, `shopping_items` (the whole list), `meals`, `summary` (one line per lunch) |
+| Draw upcoming lunches again (button) | Draws again all upcoming lunches whose shopping day has not come |
+
+Entity IDs are made by Home Assistant, not by the integration, from the
+planner's name and the entity's name in the language of your Home Assistant
+(English for languages not written in the Latin alphabet). So the "To buy"
+sensor is `sensor.lunch_planner_to_buy` with the default name in English, and
+`sensor.obiady_do_kupienia` in Polish. The blueprints and the panel do not
+depend on entity IDs: blueprints let you pick the entities, the panel finds
+them by their unique IDs.
 
 ## Actions and events
 
@@ -137,6 +149,9 @@ skrobiowego** (ziemniaki) i **surówki lub warzyw**.
 - Powiadomienia i dopisywanie do listy zakupów robią automatyzacje: gotowe
   blueprinty „Shopping list” i „Weekly plan” zaimportujesz przyciskami
   w tabeli [Blueprints](#blueprints). Ich teksty wpisujesz po polsku.
+- Identyfikatory encji tworzy Home Assistant z nazwy planera i nazwy encji
+  w języku serwera, np. `sensor.obiady_do_kupienia`. Wszystkie encje znajdziesz
+  przy urządzeniu planera w **Ustawienia → Urządzenia i usługi → Urządzenia**.
 
 Instalacja: **Ustawienia → Marketplace → Dodaj z linku**
 `https://github.com/delicatty/ha-lunch-planner`, potem restart i **Dodaj
