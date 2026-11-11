@@ -92,6 +92,29 @@ const STYLE = `
   }
 `;
 
+/**
+ * Home Assistant defines window.loadCardHelpers only once the dashboard
+ * (Lovelace) code has been loaded, e.g. after a dashboard was opened. When
+ * this panel is opened first, load that code ourselves through the panel
+ * resolver, the same way the frontend loads a dashboard panel.
+ */
+async function loadCardHelpers() {
+  if (!window.loadCardHelpers) {
+    await customElements.whenDefined("partial-panel-resolver");
+    const resolver = document.createElement("partial-panel-resolver");
+    resolver.hass = { panels: [{ url_path: "tmp", component_name: "lovelace" }] };
+    resolver._updateRoutes();
+    await resolver.routerOptions.routes.tmp.load();
+    for (let i = 0; i < 100 && !window.loadCardHelpers; i++) {
+      await new Promise((resolve) => setTimeout(resolve, 50));
+    }
+  }
+  if (!window.loadCardHelpers) {
+    throw new Error("Lunch Planner: Home Assistant card helpers are not available");
+  }
+  return window.loadCardHelpers();
+}
+
 class LunchPlannerPanel extends HTMLElement {
   constructor() {
     super();
@@ -143,7 +166,7 @@ class LunchPlannerPanel extends HTMLElement {
     if (this._built || this._building || !this._hass || !this._config) return;
     this._building = true;
     try {
-      const helpers = await window.loadCardHelpers();
+      const helpers = await loadCardHelpers();
       this._render(helpers);
       this._built = true;
     } finally {
@@ -207,7 +230,11 @@ class LunchPlannerPanel extends HTMLElement {
       plan.appendChild(stack);
       for (const key of ["today", "tomorrow", "next_shopping"]) {
         if (e[key]) {
-          this._card(helpers, { type: "tile", entity: e[key], vertical: false }, stack);
+          this._card(
+            helpers,
+            { type: "tile", entity: e[key], name: this._name(e[key], planner.title) },
+            stack,
+          );
         }
       }
       if (e.redraw) {
