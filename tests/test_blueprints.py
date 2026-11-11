@@ -40,7 +40,9 @@ async def phone(hass: HomeAssistant) -> str:
     return device.id
 
 
-async def test_automations_from_blueprints_load(hass: HomeAssistant, phone: str) -> None:
+async def test_automations_from_blueprints_load(
+    hass: HomeAssistant, phone: str, caplog: pytest.LogCaptureFixture
+) -> None:
     target = Path(hass.config.path("blueprints", "automation", "lunch_planner"))
     target.mkdir(parents=True, exist_ok=True)
     for name in BLUEPRINTS:
@@ -81,7 +83,10 @@ async def test_automations_from_blueprints_load(hass: HomeAssistant, phone: str)
         await hass.async_block_till_done()
         for entity_id in ("automation.shopping", "automation.plan"):
             state = hass.states.get(entity_id)
-            assert state is not None and state.state == "on", (entity_id, state)
+            errors = [
+                f"{r.levelname}: {r.getMessage()}" for r in caplog.records if r.levelno >= 30
+            ]
+            assert state is not None and state.state == "on", (entity_id, state, errors)
         await hass.services.async_call(
             automation.DOMAIN, "turn_off", {"entity_id": "all"}, blocking=True
         )
