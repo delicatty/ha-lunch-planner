@@ -37,7 +37,11 @@ def _planner_config(hass: HomeAssistant, entry_id: str, title: str) -> dict[str,
         key = entity.unique_id.removeprefix(f"{entry_id}_")
         if key in _KEYS:
             by_key[key] = entity.entity_id
-    return {"title": title, "entities": by_key, "lists": [by_key[c] for c in CATEGORIES if c in by_key]}
+    return {
+        "title": title,
+        "entities": by_key,
+        "lists": {c: by_key[c] for c in CATEGORIES if c in by_key},
+    }
 
 
 async def async_update_panel(

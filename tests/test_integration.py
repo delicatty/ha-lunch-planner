@@ -325,9 +325,9 @@ async def test_panel_and_hidden_lists(hass_pl: HomeAssistant, hass_client) -> No
     assert panel.sidebar_title == "Obiady"
     planner_config = panel.config["planners"][0]
     assert planner_config["entities"]["plan"] == entity(hass, entry, "calendar", "plan")
-    assert planner_config["lists"] == [
-        entity(hass, entry, "todo", c) for c in ("soup", "dish", "protein", "starch", "salad")
-    ]
+    assert planner_config["lists"] == {
+        c: entity(hass, entry, "todo", c) for c in ("soup", "dish", "protein", "starch", "salad")
+    }
     assert panel.config["_panel_custom"]["module_url"].startswith("/lunch_planner_static/panel.js?v=")
 
     # The database lists are kept out of the To-do panel.

@@ -10,6 +10,15 @@ const TEXTS = {
   en: {
     plan: "Plan",
     database: "Meal database",
+    single: "Single dishes",
+    composed: "Composed main courses",
+    lists: {
+      soup: "Soup",
+      dish: "Main course",
+      protein: "Main part",
+      starch: "Starchy side",
+      salad: "Salad / vegetables",
+    },
     redrawConfirm: "Draw all upcoming lunches again? Lunches already shopped for stay.",
     hint:
       "Add meals to the lists below. In an item's description write what to buy, " +
@@ -20,6 +29,15 @@ const TEXTS = {
   pl: {
     plan: "Plan",
     database: "Baza dań",
+    single: "Jednoskładnikowe",
+    composed: "Wieloskładnikowe",
+    lists: {
+      soup: "Zupa",
+      dish: "Drugie danie",
+      protein: "Składnik główny",
+      starch: "Dodatek skrobiowy",
+      salad: "Surówka / warzywa",
+    },
     redrawConfirm:
       "Wylosować ponownie wszystkie nadchodzące obiady? Te, na które już zrobiono zakupy, zostaną.",
     hint:
@@ -76,14 +94,27 @@ const STYLE = `
     display: grid;
     gap: 8px;
   }
+  h3 {
+    font-size: 16px;
+    font-weight: 500;
+    margin: 20px 4px 8px;
+    color: var(--secondary-text-color);
+  }
   .lists {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
     gap: 16px;
     align-items: start;
   }
+  .lists.two {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .lists.three {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
   @media (max-width: 760px) {
-    .plan {
+    .plan,
+    .lists.two,
+    .lists.three {
       grid-template-columns: 1fr;
     }
     .content {
@@ -289,16 +320,27 @@ class LunchPlannerPanel extends HTMLElement {
       content.appendChild(dbHeading);
       this._card(helpers, { type: "markdown", content: texts.hint }, content);
 
-      const lists = document.createElement("div");
-      lists.className = "lists";
-      lists.style.marginTop = "16px";
-      content.appendChild(lists);
-      for (const entityId of planner.lists || []) {
-        this._card(
-          helpers,
-          { type: "todo-list", entity: entityId, title: this._name(entityId, planner.title) },
-          lists,
-        );
+      const lists = planner.lists || {};
+      const groups = [
+        [texts.single, ["soup", "dish"], "two"],
+        [texts.composed, ["protein", "starch", "salad"], "three"],
+      ];
+      for (const [label, categories, columns] of groups) {
+        const present = categories.filter((c) => lists[c]);
+        if (!present.length) continue;
+        const subheading = document.createElement("h3");
+        subheading.textContent = label;
+        content.appendChild(subheading);
+        const grid = document.createElement("div");
+        grid.className = `lists ${columns}`;
+        content.appendChild(grid);
+        for (const category of present) {
+          this._card(
+            helpers,
+            { type: "todo-list", entity: lists[category], title: texts.lists[category] },
+            grid,
+          );
+        }
       }
     }
   }
