@@ -28,7 +28,7 @@ _STATIC_REGISTERED = f"{DOMAIN}_static_registered"
 _FRONTEND_DIR = Path(__file__).parent / "frontend"
 
 # Entities shown in the panel, by the key in their unique ID.
-_KEYS = ("today", "tomorrow", "next_shopping", "redraw", "send_shopping", "plan")
+_KEYS = ("today", "tomorrow", "next_shopping", "to_buy", "redraw", "plan")
 
 
 def _planner_config(hass: HomeAssistant, entry_id: str, title: str) -> dict[str, Any]:

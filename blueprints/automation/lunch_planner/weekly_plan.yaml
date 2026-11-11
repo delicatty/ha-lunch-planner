@@ -1,0 +1,93 @@
+blueprint:
+  name: Lunch Planner – weekly plan
+  description: >-
+    Sends the lunch plan to a phone after the weekly draw, with a button that
+    draws the upcoming lunches again (lunches whose shopping day has come stay).
+  domain: automation
+  author: delicatty
+  source_url: https://github.com/delicatty/ha-lunch-planner/blob/main/blueprints/automation/lunch_planner/weekly_plan.yaml
+  homeassistant:
+    min_version: "2025.6.0"
+  input:
+    redraw_button:
+      name: '"Draw again" button'
+      description: The planner's "Draw upcoming lunches again" button.
+      selector:
+        entity:
+          integration: lunch_planner
+          domain: button
+    notify_device:
+      name: Phone
+      description: A phone with the Home Assistant app.
+      selector:
+        device:
+          integration: mobile_app
+    title:
+      name: Notification title
+      default: Lunch plan for the week
+      selector:
+        text:
+    redraw_title:
+      name: Button text
+      default: Draw again
+      selector:
+        text:
+    send_after_redraw:
+      name: Send again after drawing again
+      description: Also send the plan after the button (or the panel) drew the lunches again.
+      default: true
+      selector:
+        boolean:
+
+mode: queued
+max: 5
+
+trigger_variables:
+  redraw_button: !input redraw_button
+
+variables:
+  title: !input title
+  redraw_title: !input redraw_title
+  send_after_redraw: !input send_after_redraw
+
+triggers:
+  - trigger: event
+    event_type: lunch_planner_plan_updated
+    id: plan
+  - trigger: event
+    event_type: mobile_app_notification_action
+    event_data:
+      action: "LUNCH_PLANNER_REDRAW_{{ redraw_button }}"
+    id: redraw_pressed
+
+actions:
+  - choose:
+      - alias: The button in the notification was pressed
+        conditions:
+          - condition: trigger
+            id: redraw_pressed
+        sequence:
+          - action: button.press
+            target:
+              entity_id: !input redraw_button
+      - alias: A plan of this planner was drawn
+        conditions:
+          - condition: trigger
+            id: plan
+          - condition: template
+            value_template: >-
+              {{ trigger.event.data.entry_id == config_entry_id(redraw_button)
+                 and (trigger.event.data.reason == 'weekly'
+                      or (trigger.event.data.reason == 'redraw' and send_after_redraw))
+                 and trigger.event.data.summary | default('') != '' }}
+        sequence:
+          - device_id: !input notify_device
+            domain: mobile_app
+            type: notify
+            title: "{{ title }}"
+            message: "{{ trigger.event.data.summary }}"
+            data:
+              tag: lunch_planner_plan
+              actions:
+                - action: "LUNCH_PLANNER_REDRAW_{{ redraw_button }}"
+                  title: "{{ redraw_title }}"

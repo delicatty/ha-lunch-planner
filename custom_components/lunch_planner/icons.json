@@ -6,16 +6,15 @@
     "sensor": {
       "today": { "default": "mdi:silverware-fork-knife" },
       "tomorrow": { "default": "mdi:silverware-clean" },
-      "next_shopping": { "default": "mdi:cart" }
+      "next_shopping": { "default": "mdi:cart" },
+      "to_buy": { "default": "mdi:format-list-checks" }
     },
     "button": {
-      "redraw": { "default": "mdi:dice-multiple" },
-      "send_shopping": { "default": "mdi:cart-arrow-right" }
+      "redraw": { "default": "mdi:dice-multiple" }
     }
   },
   "services": {
     "redraw": { "service": "mdi:dice-multiple" },
-    "send_shopping_list": { "service": "mdi:cart-arrow-right" },
     "add_meal": { "service": "mdi:food-variant" },
     "remove_meal": { "service": "mdi:food-off" }
   }

@@ -1,0 +1,168 @@
+blueprint:
+  name: Lunch Planner – shopping list
+  description: >-
+    On a shopping day, sends what to buy for the next lunch(es) to a phone and
+    adds it to to-do lists. The Lunch Planner integration decides which days
+    are shopping days (e.g. Monday's lunch is bought on Saturday when shops are
+    closed on Sunday). Optionally waits until a person is home.
+  domain: automation
+  author: delicatty
+  source_url: https://github.com/delicatty/ha-lunch-planner/blob/main/blueprints/automation/lunch_planner/shopping_list.yaml
+  homeassistant:
+    min_version: "2025.6.0"
+  input:
+    planner:
+      name: Planner
+      icon: mdi:silverware-fork-knife
+      input:
+        to_buy_sensor:
+          name: '"To buy" sensor'
+          description: The planner's "To buy" sensor.
+          selector:
+            entity:
+              integration: lunch_planner
+              domain: sensor
+        time:
+          name: Time
+          description: When to send the list on a shopping day.
+          default: "17:00:00"
+          selector:
+            time:
+    delivery:
+      name: Delivery
+      icon: mdi:cellphone-message
+      input:
+        notify_device:
+          name: Phone
+          description: A phone with the Home Assistant app.
+          selector:
+            device:
+              integration: mobile_app
+        shopping_lists:
+          name: Add to to-do lists
+          description: The things to buy are added here, unless already on the list.
+          default: []
+          selector:
+            entity:
+              domain: todo
+              multiple: true
+        title:
+          name: Notification title
+          default: Shopping for lunch
+          selector:
+            text:
+        to_buy_text:
+          name: Text before the list
+          default: "To buy:"
+          selector:
+            text:
+    presence:
+      name: Wait until home
+      icon: mdi:home-account
+      collapsed: true
+      input:
+        person:
+          name: Person
+          description: >-
+            If this person is away at the set time, the list is sent once they
+            have been home for the delay below. Leave empty to always send at
+            the set time. An unknown location counts as home.
+          default: ""
+          selector:
+            entity:
+              domain: person
+        arrival_delay:
+          name: Delay after arriving home
+          default: 15
+          selector:
+            number:
+              min: 0
+              max: 120
+              step: 5
+              unit_of_measurement: min
+        latest_time:
+          name: Latest time
+          description: After this time the list is not sent that day.
+          default: "22:00:00"
+          selector:
+            time:
+
+mode: single
+max_exceeded: silent
+
+variables:
+  sensor: !input to_buy_sensor
+  person: !input person
+  arrival_delay: !input arrival_delay
+  latest_time: !input latest_time
+  lists: !input shopping_lists
+  title: !input title
+  to_buy_text: !input to_buy_text
+
+triggers:
+  - trigger: time
+    at: !input time
+
+conditions:
+  - alias: Today is a shopping day
+    condition: template
+    value_template: "{{ state_attr(sensor, 'shopping_date') == now().date().isoformat() }}"
+
+actions:
+  - alias: Wait until the person is home
+    if:
+      - condition: template
+        value_template: >-
+          {{ person != '' and states(person) not in ['home', 'unknown', 'unavailable'] }}
+    then:
+      - alias: Home for the whole delay (re-checked on every change and every minute)
+        wait_template: >-
+          {{ is_state(person, 'home')
+             and (now() - states[person].last_changed).total_seconds() >= arrival_delay * 60 }}
+        timeout: "{{ [(today_at(latest_time) - now()).total_seconds(), 0] | max | int }}"
+        continue_on_timeout: false
+  - variables:
+      items: "{{ state_attr(sensor, 'shopping_items') or [] }}"
+      summary: "{{ state_attr(sensor, 'summary') or '' }}"
+  - condition: template
+    value_template: "{{ items | count > 0 }}"
+  - alias: Notify the phone
+    device_id: !input notify_device
+    domain: mobile_app
+    type: notify
+    title: "{{ title }}"
+    message: |-
+      {{ summary }}
+
+      {{ to_buy_text }}
+      {% for item in items %}• {{ item }}{{ '\n' if not loop.last }}{% endfor %}
+    data:
+      tag: lunch_planner_shopping
+  - alias: Add to the to-do lists
+    repeat:
+      for_each: "{{ lists }}"
+      sequence:
+        - variables:
+            todo_list: "{{ repeat.item }}"
+        - action: todo.get_items
+          target:
+            entity_id: "{{ todo_list }}"
+          data:
+            status: needs_action
+          response_variable: existing
+        - variables:
+            missing: >-
+              {% set have = existing[todo_list]['items'] | map(attribute='summary') | map('lower') | list %}
+              {% set ns = namespace(add=[]) %}
+              {% for item in items if item | lower not in have %}
+              {% set ns.add = ns.add + [item] %}
+              {% endfor %}
+              {{ ns.add }}
+        - repeat:
+            for_each: "{{ missing }}"
+            sequence:
+              - action: todo.add_item
+                target:
+                  entity_id: "{{ todo_list }}"
+                data:
+                  item: "{{ repeat.item }}"

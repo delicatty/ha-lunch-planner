@@ -26,6 +26,7 @@ async def async_setup_entry(
             MealSensor(planner, "today", 0),
             MealSensor(planner, "tomorrow", 1),
             ShoppingSensor(planner, "next_shopping"),
+            ToBuySensor(planner, "to_buy"),
         ]
     )
 
@@ -78,5 +79,40 @@ class ShoppingSensor(LunchPlannerEntity, SensorEntity):
         return {
             "meal_dates": [m["date"] for m in meals],
             "meals": [self.planner.describe(m) for m in meals],
+            "shopping_items": meal_shopping_items(meals),
+        }
+
+
+class ToBuySensor(LunchPlannerEntity, SensorEntity):
+    """What to buy on the next shopping day, as one line of text.
+
+    The state is cut at Home Assistant's 255-character limit; the
+    ``shopping_items`` attribute always holds the whole list.
+    """
+
+    @property
+    def native_value(self) -> str | None:
+        upcoming = self.planner.next_shopping()
+        if not upcoming:
+            return None
+        text = ", ".join(meal_shopping_items(upcoming[1]))
+        return text if len(text) <= 255 else text[:254] + "…"
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any] | None:
+        upcoming = self.planner.next_shopping()
+        if not upcoming:
+            return None
+        day, meals = upcoming
+        lines = [
+            f"{self.planner.day_label(date.fromisoformat(m['date']))}: {self.planner.describe(m)}"
+            for m in meals
+        ]
+        return {
+            "shopping_date": day.isoformat(),
+            "meal_dates": [m["date"] for m in meals],
+            "meals": [self.planner.describe(m) for m in meals],
+            # One line per lunch, e.g. "pon 16.11: Zupa grzybowa", for messages.
+            "summary": "\n".join(lines),
             "shopping_items": meal_shopping_items(meals),
         }

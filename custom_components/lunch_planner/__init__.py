@@ -22,8 +22,8 @@ from .const import (
     PLATFORMS,
     SERVICE_ADD_MEAL,
     SERVICE_REDRAW,
+    REMOVED_OPTIONS,
     SERVICE_REMOVE_MEAL,
-    SERVICE_SEND_SHOPPING_LIST,
 )
 from .manager import LunchPlanner
 from .panel import async_update_panel
@@ -38,7 +38,6 @@ _REDRAW_SCHEMA = vol.Schema(
         vol.Optional(ATTR_DATE): cv.date,
     }
 )
-_SHOPPING_SCHEMA = vol.Schema({vol.Optional(ATTR_CONFIG_ENTRY_ID): cv.string})
 
 
 def _text_list(value: Any) -> list[str]:
@@ -95,10 +94,6 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
         drawn = planner.async_redraw(day)
         return {"dates": [d.isoformat() for d in drawn]}
 
-    async def send_shopping_list(call: ServiceCall) -> ServiceResponse:
-        sent = await _planner_for(hass, call).async_send_shopping()
-        return {"sent": sent}
-
     async def add_meal(call: ServiceCall) -> None:
         planner = _planner_for(hass, call)
         start, end = call.data.get("season_from"), call.data.get("season_to")
@@ -133,13 +128,16 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     hass.services.async_register(
         DOMAIN, SERVICE_REDRAW, redraw, _REDRAW_SCHEMA, supports_response=SupportsResponse.OPTIONAL
     )
-    hass.services.async_register(
-        DOMAIN,
-        SERVICE_SEND_SHOPPING_LIST,
-        send_shopping_list,
-        _SHOPPING_SCHEMA,
-        supports_response=SupportsResponse.OPTIONAL,
-    )
+    return True
+
+
+async def async_migrate_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
+    """1.1 -> 1.2: notifications moved to automations, drop their options."""
+    if entry.version > 1:
+        return False
+    if entry.minor_version < 2:
+        options = {k: v for k, v in entry.options.items() if k not in REMOVED_OPTIONS}
+        hass.config_entries.async_update_entry(entry, options=options, minor_version=2)
     return True
 
 
@@ -148,7 +146,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: LunchPlannerConfigEntry)
     planner = LunchPlanner(hass, entry)
     await planner.async_load()
     entry.runtime_data = planner
-    _remove_old_todo_entities(hass, entry)
+    _remove_old_entities(hass, entry)
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     planner.async_start()
     entry.async_on_unload(planner.async_stop)
@@ -157,11 +155,15 @@ async def async_setup_entry(hass: HomeAssistant, entry: LunchPlannerConfigEntry)
     return True
 
 
-def _remove_old_todo_entities(hass: HomeAssistant, entry: LunchPlannerConfigEntry) -> None:
-    """Version 0.2 kept the meal database in to-do lists; the panel replaced them."""
+def _remove_old_entities(hass: HomeAssistant, entry: LunchPlannerConfigEntry) -> None:
+    """Remove entities of earlier versions.
+
+    0.2 kept the meal database in to-do lists (the panel replaced them);
+    0.3 had a "send shopping list now" button (automations send it now).
+    """
     registry = er.async_get(hass)
     for entity in er.async_entries_for_config_entry(registry, entry.entry_id):
-        if entity.domain == "todo":
+        if entity.domain == "todo" or entity.unique_id == f"{entry.entry_id}_send_shopping":
             registry.async_remove(entity.entity_id)
 
 

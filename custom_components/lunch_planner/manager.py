@@ -1,4 +1,4 @@
-"""Storage, scheduling and notifications for one Lunch Planner entry."""
+"""Storage and scheduling for one Lunch Planner entry."""
 
 from __future__ import annotations
 
@@ -9,50 +9,36 @@ from typing import Any
 import uuid
 
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import STATE_HOME, STATE_UNAVAILABLE, STATE_UNKNOWN
-from homeassistant.core import CALLBACK_TYPE, Event, EventStateChangedData, HomeAssistant, callback
+from homeassistant.core import CALLBACK_TYPE, HomeAssistant, callback
 from homeassistant.exceptions import HomeAssistantError
-from homeassistant.helpers.event import (
-    async_call_later,
-    async_track_state_change_event,
-    async_track_time_change,
-)
+from homeassistant.helpers.event import async_track_time_change
 from homeassistant.helpers.storage import Store
 from homeassistant.util import dt as dt_util
 
 from . import planner
 from .const import (
-    ACTION_REDRAW_PREFIX,
     CATEGORIES,
-    CONF_ARRIVAL_DELAY,
     CONF_AVOID_PREVIOUS_WEEK,
     CONF_DRAW_TIME,
     CONF_DRAW_WEEKDAY,
     CONF_MEAL_DAYS,
     CONF_MEAL_MODE,
     CONF_NO_SHOPPING_DAYS,
-    CONF_NOTIFY,
-    CONF_PERSON,
-    CONF_SHOPPING_LIST,
-    CONF_SHOPPING_MODE,
-    CONF_SHOPPING_TIME,
     CONF_SOUP_SHARE,
     DEFAULT_OPTIONS,
     DOMAIN,
     EVENT_PLAN_UPDATED,
     HISTORY_DAYS,
-    LATEST_ARRIVAL_REMINDER,
-    SHOPPING_MODE_PRESENCE,
+    REASON_FIRST,
+    REASON_MISSING,
+    REASON_REDRAW,
+    REASON_WEEKLY,
     STORAGE_VERSION,
     WEEKDAYS,
 )
 from .texts import async_load_texts
 
 _LOGGER = logging.getLogger(__name__)
-
-# A person in one of these states counts as at home: an unknown location must
-# not swallow the shopping list.
-_HOME_STATES = (STATE_HOME, STATE_UNKNOWN, STATE_UNAVAILABLE)
 
 
 def _weekday_numbers(names: list[str]) -> list[int]:
@@ -116,11 +102,8 @@ class LunchPlanner:
         )
         self.items: dict[str, list[dict[str, Any]]] = {c: [] for c in CATEGORIES}
         self.plan: dict[str, dict[str, Any]] = {}
-        self.shopping_sent_on: str | None = None
-        self.shopping_pending_on: str | None = None
         self._listeners: list[CALLBACK_TYPE] = []
         self._unsubs: list[CALLBACK_TYPE] = []
-        self._arrival_timer: CALLBACK_TYPE | None = None
         self._rng = random.Random()
         self._texts: dict[str, str] = {}
 
@@ -160,8 +143,6 @@ class LunchPlanner:
         }
         migrated = any("summary" in m for c in stored_items.values() for m in c)
         self.plan = dict(data.get("plan", {}))
-        self.shopping_sent_on = data.get("shopping_sent_on")
-        self.shopping_pending_on = data.get("shopping_pending_on")
         if migrated:
             self._schedule_save()
 
@@ -173,8 +154,6 @@ class LunchPlanner:
         return {
             "items": self.items,
             "plan": self.plan,
-            "shopping_sent_on": self.shopping_sent_on,
-            "shopping_pending_on": self.shopping_pending_on,
         }
 
     async def async_flush(self) -> None:
@@ -272,16 +251,23 @@ class LunchPlanner:
         return self.plan.get(day.isoformat())
 
     def is_locked(self, day: date) -> bool:
-        """A day is fixed once its shopping is done or its shopping day passed."""
+        """A day is fixed from the start of the day its shopping is done on.
+
+        From then on the shopping list for it may already be out, so drawing
+        again must not change it.
+        """
         today = self.today()
-        if day <= today:
-            return True
-        buy_on = planner.shopping_day(day, self.no_shopping_weekdays)
-        return buy_on < today or (buy_on == today and self.shopping_sent_on == today.isoformat())
+        return day <= today or planner.shopping_day(day, self.no_shopping_weekdays) <= today
 
     @callback
-    def _draw(self, days: list[date]) -> list[date]:
-        days = [d for d in days if not self.is_locked(d)]
+    def _draw(self, days: list[date], reason: str) -> list[date]:
+        # A locked day keeps its meal; a future day with no meal can always get one.
+        today = self.today()
+        days = [
+            d
+            for d in days
+            if d > today and (not self.is_locked(d) or d.isoformat() not in self.plan)
+        ]
         if not days:
             return []
         drawn = planner.plan_days(
@@ -295,9 +281,37 @@ class LunchPlanner:
                 self.plan.pop(iso, None)
         oldest = (self.today() - timedelta(days=HISTORY_DAYS)).isoformat()
         self.plan = {iso: meal for iso, meal in sorted(self.plan.items()) if iso >= oldest}
-        self.hass.bus.async_fire(EVENT_PLAN_UPDATED, {"entry_id": self.entry.entry_id})
+        self.hass.bus.async_fire(EVENT_PLAN_UPDATED, self._plan_event(days, reason))
         self._changed()
         return days
+
+    def _plan_event(self, drawn: list[date], reason: str) -> dict[str, Any]:
+        """Event data, ready to be put into a notification by an automation.
+
+        ``meals`` and ``summary`` cover every planned day from tomorrow to the
+        end of the last drawn day's week, so a weekly draw also lists a Monday
+        that was drawn earlier because its shopping day had come.
+        """
+        last = max(drawn)
+        week_end = last + timedelta(days=6 - last.weekday())
+        today = self.today()
+        meals = [
+            {
+                "date": iso,
+                "label": self.day_label(date.fromisoformat(iso)),
+                "meal": self.describe(meal),
+                "shopping_items": planner.meal_shopping_items([meal]),
+            }
+            for iso, meal in sorted(self.plan.items())
+            if today < date.fromisoformat(iso) <= week_end
+        ]
+        return {
+            "entry_id": self.entry.entry_id,
+            "reason": reason,
+            "drawn": [d.isoformat() for d in sorted(drawn)],
+            "meals": meals,
+            "summary": "\n".join(f"{m['label']}: {m['meal']}" for m in meals),
+        }
 
     def upcoming_days(self) -> list[date]:
         """Planned days after today that can still change."""
@@ -315,15 +329,15 @@ class LunchPlanner:
             if day.weekday() not in self.meal_weekdays:
                 raise HomeAssistantError(f"{day} is not a meal day")
             if self.is_locked(day):
-                raise HomeAssistantError(f"{day} is already fixed: its shopping is done")
-            return self._draw([day])
+                raise HomeAssistantError(f"{day} is already fixed: its shopping day has come")
+            return self._draw([day], REASON_REDRAW)
         today = self.today()
         days = self.upcoming_days()
         if not days:
             days = planner.rest_of_week_days(today, self.meal_weekdays)
         if not [d for d in days if not self.is_locked(d)]:
             days = planner.next_week_days(today, self.meal_weekdays)
-        return self._draw(days)
+        return self._draw(days, REASON_REDRAW)
 
     @callback
     def async_ensure_plan(self) -> None:
@@ -334,14 +348,33 @@ class LunchPlanner:
         days = planner.rest_of_week_days(today, self.meal_weekdays)
         if not [d for d in days if not self.is_locked(d)]:
             days = planner.next_week_days(today, self.meal_weekdays)
-        self._draw(days)
+        self._draw(days, REASON_FIRST)
 
-    async def async_weekly_draw(self) -> None:
-        drawn = self._draw(planner.next_week_days(self.today(), self.meal_weekdays))
-        if drawn:
-            await self.async_send_plan(drawn)
+    @callback
+    def async_weekly_draw(self) -> list[date]:
+        return self._draw(planner.next_week_days(self.today(), self.meal_weekdays), REASON_WEEKLY)
 
-    # -- notifications -----------------------------------------------------
+    @callback
+    def _draw_missing(self) -> None:
+        """Draw meals whose shopping day has come but which are not planned yet.
+
+        E.g. when the weekly draw is set later than the first shopping day of
+        the week. Runs at start-up and at midnight.
+        """
+        today = self.today()
+        missing = []
+        for offset in range(1, 9):
+            day = today + timedelta(days=offset)
+            if (
+                day.weekday() in self.meal_weekdays
+                and day.isoformat() not in self.plan
+                and planner.shopping_day(day, self.no_shopping_weekdays) <= today
+            ):
+                missing.append(day)
+        if missing:
+            self._draw(missing, REASON_MISSING)
+
+    # -- texts -------------------------------------------------------------
 
     def describe(self, meal: dict[str, Any], capitalize: bool = True) -> str:
         """The meal in words, in the Home Assistant language."""
@@ -353,137 +386,23 @@ class LunchPlanner:
         """Calendar title, e.g. ``Obiad: zupa grzybowa``."""
         return self.texts["event"].format(meal=self.describe(meal, capitalize=False))
 
-    def _day_label(self, day: date) -> str:
+    def day_label(self, day: date) -> str:
+        """Short day name and date, e.g. ``pon 16.11``."""
         return f"{self.texts[f'weekday_{WEEKDAYS[day.weekday()]}']} {day.strftime('%d.%m')}"
 
-    async def _notify(self, title: str, message: str, data: dict | None = None) -> None:
-        for target in self.option(CONF_NOTIFY) or []:
-            domain, _, service = target.partition(".")
-            if not service:
-                domain, service = "notify", target
-            payload: dict[str, Any] = {"title": title, "message": message}
-            if data and service.startswith("mobile_app_"):
-                payload["data"] = data
-            try:
-                await self.hass.services.async_call(domain, service, payload, blocking=True)
-            except HomeAssistantError as err:
-                _LOGGER.warning("Could not send notification with %s: %s", target, err)
-
-    async def async_send_plan(self, days: list[date]) -> None:
-        lines = []
-        for day in sorted(days):
-            meal = self.meal_for(day)
-            if meal:
-                lines.append(f"{self._day_label(day)}: {self.describe(meal)}")
-        if not lines:
-            return
-        await self._notify(
-            self.texts["plan_title"],
-            "\n".join(lines),
-            {
-                "tag": f"{DOMAIN}_{self.entry.entry_id}_plan",
-                "actions": [
-                    {
-                        "action": f"{ACTION_REDRAW_PREFIX}{self.entry.entry_id}",
-                        "title": self.texts["redraw"],
-                    }
-                ],
-            },
-        )
-
-    def meals_to_buy_today(self) -> list[dict[str, Any]]:
-        return planner.meals_to_buy_on(self.plan, self.today(), self.no_shopping_weekdays)
+    # -- shopping ------------------------------------------------------------
 
     def next_shopping(self) -> tuple[date, list[dict[str, Any]]] | None:
-        """The next day with something to buy, and the meals bought for then."""
+        """The next day (today or later) with something to buy, and its meals."""
         today = self.today()
-        closed = self.no_shopping_weekdays
         for offset in range(14):
             day = today + timedelta(days=offset)
-            if offset == 0 and self.shopping_sent_on == today.isoformat():
-                continue
-            meals = planner.meals_to_buy_on(self.plan, day, closed)
+            meals = planner.meals_to_buy_on(self.plan, day, self.no_shopping_weekdays)
             if meals:
                 return day, meals
         return None
 
-    @callback
-    def _draw_missing_for_today(self) -> None:
-        """Draw meals that are bought today but not planned yet.
-
-        This covers a weekly draw that has not run yet (e.g. it is set to a
-        later day than the first shopping day of the week).
-        """
-        today = self.today()
-        missing = []
-        for offset in range(1, 8):
-            day = today + timedelta(days=offset)
-            if (
-                day.weekday() in self.meal_weekdays
-                and day.isoformat() not in self.plan
-                and planner.shopping_day(day, self.no_shopping_weekdays) == today
-            ):
-                missing.append(day)
-        if missing:
-            self._draw(missing)
-
-    async def async_send_shopping(self) -> bool:
-        """Send today's shopping list. Returns False when there is nothing to buy."""
-        today = self.today()
-        self._draw_missing_for_today()
-        meals = self.meals_to_buy_today()
-        if not meals:
-            return False
-        items = planner.meal_shopping_items(meals)
-        days = ", ".join(self._day_label(date.fromisoformat(m["date"])) for m in meals)
-        lines = [
-            f"{self._day_label(date.fromisoformat(m['date']))}: {self.describe(m)}"
-            for m in meals
-        ]
-        lines += ["", self.texts["to_buy"], *[f"• {i}" for i in items]]
-        await self._notify(
-            self.texts["shopping_title"].format(days=days),
-            "\n".join(lines),
-            {"tag": f"{DOMAIN}_{self.entry.entry_id}_shopping"},
-        )
-        await self._add_to_shopping_list(items)
-        self.shopping_sent_on = today.isoformat()
-        self.shopping_pending_on = None
-        self._changed()
-        return True
-
-    async def _add_to_shopping_list(self, items: list[str]) -> None:
-        entity_id = self.option(CONF_SHOPPING_LIST)
-        if not entity_id:
-            return
-        try:
-            response = await self.hass.services.async_call(
-                "todo",
-                "get_items",
-                {"entity_id": entity_id, "status": "needs_action"},
-                blocking=True,
-                return_response=True,
-            )
-            existing = {
-                i["summary"].casefold()
-                for i in (response or {}).get(entity_id, {}).get("items", [])
-            }
-            for item in items:
-                if item.casefold() not in existing:
-                    await self.hass.services.async_call(
-                        "todo", "add_item", {"entity_id": entity_id, "item": item}, blocking=True
-                    )
-        except HomeAssistantError as err:
-            _LOGGER.warning("Could not add to shopping list %s: %s", entity_id, err)
-
     # -- schedule ----------------------------------------------------------
-
-    def _person_home(self) -> bool:
-        person = self.option(CONF_PERSON)
-        if not person:
-            return True
-        state = self.hass.states.get(person)
-        return state is None or state.state in _HOME_STATES
 
     @callback
     def async_start(self) -> None:
@@ -493,80 +412,26 @@ class LunchPlanner:
                 self.hass, self._on_draw_time, hour=hour, minute=minute, second=second
             )
         )
-        hour, minute, second = _parse_time(self.option(CONF_SHOPPING_TIME))
-        self._unsubs.append(
-            async_track_time_change(
-                self.hass, self._on_shopping_time, hour=hour, minute=minute, second=second
-            )
-        )
-        person = self.option(CONF_PERSON)
-        if self.option(CONF_SHOPPING_MODE) == SHOPPING_MODE_PRESENCE and person:
-            self._unsubs.append(
-                async_track_state_change_event(self.hass, person, self._on_person_change)
-            )
-        self._unsubs.append(
-            self.hass.bus.async_listen("mobile_app_notification_action", self._on_action)
-        )
-        # "Today" and "tomorrow" move at midnight.
+        # "Today", "tomorrow" and the next shopping day move at midnight.
         self._unsubs.append(
             async_track_time_change(self.hass, self._on_midnight, hour=0, minute=0, second=5)
         )
         self.async_ensure_plan()
-
-    @callback
-    def _on_midnight(self, _now: datetime) -> None:
-        for update in list(self._listeners):
-            update()
+        self._draw_missing()
 
     @callback
     def async_stop(self) -> None:
         for unsub in self._unsubs:
             unsub()
         self._unsubs.clear()
-        if self._arrival_timer:
-            self._arrival_timer()
-            self._arrival_timer = None
-
-    async def _on_draw_time(self, now: datetime) -> None:
-        if WEEKDAYS[now.weekday()] == self.option(CONF_DRAW_WEEKDAY):
-            await self.async_weekly_draw()
-
-    async def _on_shopping_time(self, now: datetime) -> None:
-        if self.shopping_sent_on == self.today().isoformat():
-            return
-        self._draw_missing_for_today()
-        if not self.meals_to_buy_today():
-            return
-        if self.option(CONF_SHOPPING_MODE) == SHOPPING_MODE_PRESENCE and not self._person_home():
-            self.shopping_pending_on = self.today().isoformat()
-            self._schedule_save()
-            return
-        await self.async_send_shopping()
 
     @callback
-    def _on_person_change(self, event: Event[EventStateChangedData]) -> None:
-        new_state = event.data["new_state"]
-        if self._arrival_timer:
-            self._arrival_timer()
-            self._arrival_timer = None
-        if new_state is None or new_state.state != STATE_HOME:
-            return
-        delay = int(self.option(CONF_ARRIVAL_DELAY) or 0) * 60
-        self._arrival_timer = async_call_later(self.hass, delay, self._on_arrived)
+    def _on_draw_time(self, now: datetime) -> None:
+        if WEEKDAYS[now.weekday()] == self.option(CONF_DRAW_WEEKDAY):
+            self.async_weekly_draw()
 
-    async def _on_arrived(self, _now: datetime) -> None:
-        self._arrival_timer = None
-        today = self.today().isoformat()
-        if (
-            self.shopping_pending_on == today
-            and self.shopping_sent_on != today
-            and self._person_home()
-            and dt_util.now().time() < LATEST_ARRIVAL_REMINDER
-        ):
-            await self.async_send_shopping()
-
-    async def _on_action(self, event: Event) -> None:
-        if event.data.get("action") == f"{ACTION_REDRAW_PREFIX}{self.entry.entry_id}":
-            drawn = self.async_redraw()
-            if drawn:
-                await self.async_send_plan(drawn)
+    @callback
+    def _on_midnight(self, _now: datetime) -> None:
+        self._draw_missing()
+        for update in list(self._listeners):
+            update()

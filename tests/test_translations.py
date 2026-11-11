@@ -47,9 +47,9 @@ def test_panel_keys_exist(lang):
 @pytest.mark.parametrize("lang", LANGUAGES)
 def test_notification_texts_exist(lang):
     options = load(lang)["selector"]["notification"]["options"]
-    expected = {"default_name", "plan_title", "redraw", "shopping_title", "to_buy", "event",
-                "soup_format", "soup_word"} | {f"weekday_{d}" for d in ("mon", "tue", "wed", "thu", "fri", "sat", "sun")}
-    assert expected <= set(options)
-    assert "{days}" in options["shopping_title"]
+    expected = {"default_name", "event", "soup_format", "soup_word"} | {
+        f"weekday_{d}" for d in ("mon", "tue", "wed", "thu", "fri", "sat", "sun")
+    }
+    assert set(options) == expected
     assert "{meal}" in options["event"]
     assert "{name}" in options["soup_format"]

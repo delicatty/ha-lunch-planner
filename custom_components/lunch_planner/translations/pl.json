@@ -11,7 +11,7 @@
       },
       "settings": {
         "title": "Ustawienia",
-        "description": "Dania dodajesz w panelu planera w pasku bocznym.",
+        "description": "Dania dodajesz w panelu planera w pasku bocznym. Powiadomienia i listę zakupów wysyłają automatyzacje: w repozytorium integracji są do tego gotowe blueprinty.",
         "data": {
           "meal_days": "Dni z obiadem",
           "meal_mode": "Co jest na obiad",
@@ -19,13 +19,7 @@
           "avoid_previous_week": "Unikaj dań z poprzedniego tygodnia",
           "draw_weekday": "Losowanie: dzień",
           "draw_time": "Losowanie: godzina",
-          "shopping_mode": "Kiedy wysyłać listę zakupów",
-          "shopping_time": "Godzina listy zakupów",
-          "person": "Osoba",
-          "arrival_delay": "Opóźnienie po powrocie",
           "no_shopping_days": "Dni bez zakupów",
-          "notify_services": "Wysyłaj powiadomienia do",
-          "shopping_list": "Dodawaj do listy zakupów",
           "show_panel": "Pokazuj panel planera w pasku bocznym"
         },
         "data_description": {
@@ -33,12 +27,7 @@
           "soup_share": "Tylko dla „Zupa albo drugie danie”: jaka część tygodnia to zupa.",
           "avoid_previous_week": "Wybieraj dania, których nie było tydzień wcześniej, jeśli baza ma ich dość.",
           "draw_weekday": "Losowanie planuje tydzień od najbliższego poniedziałku. Musi być przed zakupami na poniedziałek.",
-          "shopping_time": "Przy „Gdy wrócę do domu” to najwcześniejsza godzina.",
-          "person": "Dla „Gdy wrócę do domu”: lista czeka, aż ta osoba będzie w domu.",
-          "arrival_delay": "Ile minut po powrocie wysłać listę.",
           "no_shopping_days": "Zakupy na następny dzień przechodzą na ostatni wcześniejszy dzień, np. obiad na poniedziałek kupujesz w sobotę, gdy w niedzielę sklepy są zamknięte.",
-          "notify_services": "Akcje powiadomień, np. notify.mobile_app_telefon. Trafia tu plan tygodnia i listy zakupów.",
-          "shopping_list": "Lista zadań, na którą trafiają rzeczy do kupienia.",
           "show_panel": "Panel z planem i edytorem bazy dań. Bez niego dania zmieniasz akcjami add_meal i remove_meal."
         }
       }
@@ -52,7 +41,7 @@
     "step": {
       "init": {
         "title": "Ustawienia",
-        "description": "Dania dodajesz w panelu planera w pasku bocznym.",
+        "description": "Dania dodajesz w panelu planera w pasku bocznym. Powiadomienia i listę zakupów wysyłają automatyzacje: w repozytorium integracji są do tego gotowe blueprinty.",
         "data": {
           "meal_days": "Dni z obiadem",
           "meal_mode": "Co jest na obiad",
@@ -60,13 +49,7 @@
           "avoid_previous_week": "Unikaj dań z poprzedniego tygodnia",
           "draw_weekday": "Losowanie: dzień",
           "draw_time": "Losowanie: godzina",
-          "shopping_mode": "Kiedy wysyłać listę zakupów",
-          "shopping_time": "Godzina listy zakupów",
-          "person": "Osoba",
-          "arrival_delay": "Opóźnienie po powrocie",
           "no_shopping_days": "Dni bez zakupów",
-          "notify_services": "Wysyłaj powiadomienia do",
-          "shopping_list": "Dodawaj do listy zakupów",
           "show_panel": "Pokazuj panel planera w pasku bocznym"
         },
         "data_description": {
@@ -74,12 +57,7 @@
           "soup_share": "Tylko dla „Zupa albo drugie danie”: jaka część tygodnia to zupa.",
           "avoid_previous_week": "Wybieraj dania, których nie było tydzień wcześniej, jeśli baza ma ich dość.",
           "draw_weekday": "Losowanie planuje tydzień od najbliższego poniedziałku. Musi być przed zakupami na poniedziałek.",
-          "shopping_time": "Przy „Gdy wrócę do domu” to najwcześniejsza godzina.",
-          "person": "Dla „Gdy wrócę do domu”: lista czeka, aż ta osoba będzie w domu.",
-          "arrival_delay": "Ile minut po powrocie wysłać listę.",
           "no_shopping_days": "Zakupy na następny dzień przechodzą na ostatni wcześniejszy dzień, np. obiad na poniedziałek kupujesz w sobotę, gdy w niedzielę sklepy są zamknięte.",
-          "notify_services": "Akcje powiadomień, np. notify.mobile_app_telefon. Trafia tu plan tygodnia i listy zakupów.",
-          "shopping_list": "Lista zadań, na którą trafiają rzeczy do kupienia.",
           "show_panel": "Panel z planem i edytorem bazy dań. Bez niego dania zmieniasz akcjami add_meal i remove_meal."
         }
       }
@@ -96,12 +74,6 @@
         "soup_and_main": "Zupa i drugie danie",
         "soup_only": "Tylko zupa",
         "main_only": "Tylko drugie danie"
-      }
-    },
-    "shopping_mode": {
-      "options": {
-        "time": "O stałej godzinie",
-        "presence": "Gdy wrócę do domu (od ustawionej godziny do 22:00)"
       }
     },
     "weekday": {
@@ -161,10 +133,6 @@
     "notification": {
       "options": {
         "default_name": "Obiady",
-        "plan_title": "Plan obiadów na tydzień",
-        "redraw": "Losuj ponownie",
-        "shopping_title": "Zakupy na obiad: {days}",
-        "to_buy": "Do kupienia:",
         "event": "Obiad: {meal}",
         "soup_format": "zupa {name}",
         "soup_word": "zup",
@@ -193,14 +161,14 @@
       },
       "next_shopping": {
         "name": "Następne zakupy"
+      },
+      "to_buy": {
+        "name": "Do kupienia"
       }
     },
     "button": {
       "redraw": {
         "name": "Losuj ponownie nadchodzące obiady"
-      },
-      "send_shopping": {
-        "name": "Wyślij listę zakupów teraz"
       }
     }
   },
@@ -216,16 +184,6 @@
         "date": {
           "name": "Data",
           "description": "Losuj tylko ten dzień. Puste = wszystkie nadchodzące obiady."
-        }
-      }
-    },
-    "send_shopping_list": {
-      "name": "Wyślij listę zakupów",
-      "description": "Wysyła teraz dzisiejszą listę zakupów i dodaje ją do listy zakupów.",
-      "fields": {
-        "config_entry_id": {
-          "name": "Planer",
-          "description": "Potrzebne tylko przy więcej niż jednym planerze."
         }
       }
     },

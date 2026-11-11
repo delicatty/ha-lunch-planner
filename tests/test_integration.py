@@ -9,7 +9,6 @@ import pytest
 from pytest_homeassistant_custom_component.common import (
     MockConfigEntry,
     async_fire_time_changed,
-    async_mock_service,
 )
 
 from homeassistant.config_entries import ConfigEntryState
@@ -35,16 +34,13 @@ async def hass_pl(hass: HomeAssistant) -> HomeAssistant:
     return hass
 
 
-@pytest.fixture
-def notify_calls(hass: HomeAssistant):
-    return async_mock_service(hass, "notify", "mobile_app_phone")
-
-
 def make_entry(**options) -> MockConfigEntry:
     return MockConfigEntry(
         domain=DOMAIN,
         title="Obiady",
-        options={**DEFAULT_OPTIONS, "notify_services": ["notify.mobile_app_phone"], **options},
+        version=1,
+        minor_version=2,
+        options={**DEFAULT_OPTIONS, **options},
     )
 
 
@@ -179,12 +175,13 @@ async def test_item_description_and_disabled_items(
         {"category": "soup", "name": "Botwinkowa", "season_from": 5, "season_to": 7},
         blocking=True,
     )
+    # Friday's shopping day (Thursday) has not come yet, so Friday can be drawn again.
+    planner = entry.runtime_data
     for _ in range(5):
-        await hass.services.async_call(DOMAIN, "redraw", {"date": "2026-11-12"}, blocking=True)
-        await hass.async_block_till_done()
-        state = hass.states.get(entity(hass, entry, "sensor", "tomorrow"))
-        assert state.state == "Zupa pomidorowa"
-        assert state.attributes["shopping_items"] == ["passata", "śmietana", "makaron"]
+        await hass.services.async_call(DOMAIN, "redraw", {"date": "2026-11-13"}, blocking=True)
+        meal = planner.plan["2026-11-13"]
+        assert planner.describe(meal) == "Zupa pomidorowa"
+        assert meal["parts"][0]["ingredients"] == ["passata", "śmietana", "makaron"]
 
 
 async def test_add_meal_updates_by_name_and_remove_meal(hass_pl: HomeAssistant) -> None:
@@ -308,133 +305,126 @@ async def test_migration_from_todo_lists(hass_pl: HomeAssistant, hass_storage) -
     assert registry.async_get(old.entity_id) is None
 
 
-async def test_weekly_draw_and_redraw_button_in_notification(
-    hass_pl: HomeAssistant, freezer: FrozenDateTimeFactory, notify_calls
+def capture_plan_events(hass: HomeAssistant) -> list:
+    events = []
+    hass.bus.async_listen(f"{DOMAIN}_plan_updated", events.append)
+    return events
+
+
+async def test_weekly_draw_event_lists_the_whole_week(
+    hass_pl: HomeAssistant, freezer: FrozenDateTimeFactory
 ) -> None:
+    """Monday is drawn at midnight (its shopping day, Saturday, has come);
+    the Saturday 09:00 draw adds Tue-Fri and its event lists all five days."""
     hass = hass_pl
-    freezer.move_to(local("2026-11-14 08:59:00"))  # Saturday
+    freezer.move_to(local("2026-11-13 18:00:00"))  # Friday
     entry = make_entry()
     await setup_entry(hass, entry)
     await fill_database(hass, entry)
+    planner = entry.runtime_data
+    planner.plan.clear()
+    events = capture_plan_events(hass)
+
+    freezer.move_to(local("2026-11-14 00:00:05"))
+    async_fire_time_changed(hass)
+    await hass.async_block_till_done()
+    assert [e.data["reason"] for e in events] == ["missing"]
+    assert events[0].data["drawn"] == ["2026-11-16"]
+    monday = planner.plan["2026-11-16"]
 
     freezer.move_to(local("2026-11-14 09:00:00"))
     async_fire_time_changed(hass)
     await hass.async_block_till_done()
-
-    assert len(notify_calls) == 1
-    message = notify_calls[0].data["message"].splitlines()
-    assert [line.split(":")[0] for line in message] == [
-        "pon 16.11", "wt 17.11", "śr 18.11", "czw 19.11", "pt 20.11"
+    weekly = events[-1].data
+    assert weekly["reason"] == "weekly"
+    assert weekly["entry_id"] == entry.entry_id
+    assert weekly["drawn"] == ["2026-11-17", "2026-11-18", "2026-11-19", "2026-11-20"]
+    assert [m["date"] for m in weekly["meals"]] == [
+        "2026-11-16", "2026-11-17", "2026-11-18", "2026-11-19", "2026-11-20"
     ]
-    action = notify_calls[0].data["data"]["actions"][0]["action"]
-    assert action == f"LUNCH_PLANNER_REDRAW_{entry.entry_id}"
-
-    hass.bus.async_fire("mobile_app_notification_action", {"action": action})
-    await hass.async_block_till_done()
-    assert len(notify_calls) == 2
-
-
-async def test_saturday_shopping_for_monday_and_lock(
-    hass_pl: HomeAssistant, freezer: FrozenDateTimeFactory, notify_calls
-) -> None:
-    hass = hass_pl
-    freezer.move_to(local("2026-11-13 18:00:00"))  # Friday, after shopping time
-    entry = make_entry(shopping_list="todo.shopping_list")
-    await setup_entry(hass, MockConfigEntry(domain="shopping_list"))
-    assert hass.states.get("todo.shopping_list")
-    await setup_entry(hass, entry)
-    await fill_database(hass, entry)
-
-    # Saturday 17:00: the weekly draw has not happened on purpose (it is set to
-    # Sunday), so Monday's lunch is drawn on the spot and bought now.
-    await hass.config_entries.async_unload(entry.entry_id)
-    hass.config_entries.async_update_entry(entry, options={**entry.options, "draw_weekday": "sun"})
-    await hass.config_entries.async_setup(entry.entry_id)
-    await hass.async_block_till_done()
-
-    freezer.move_to(local("2026-11-14 17:00:00"))
-    async_fire_time_changed(hass)
-    await hass.async_block_till_done()
-
-    planner = entry.runtime_data
-    shopping = [c for c in notify_calls if "pon 16.11" in c.data["title"]]
-    assert len(shopping) == 1, (
-        sorted(planner.plan), [c.data.get("title") for c in notify_calls], planner.today()
-    )
-    monday = planner.plan["2026-11-16"]
-
-    items = await hass.services.async_call(
-        "todo", "get_items", {}, target={"entity_id": "todo.shopping_list"},
-        blocking=True, return_response=True,
-    )
-    on_list = [i["summary"] for i in items["todo.shopping_list"]["items"]]
-    # The shopping list file outlives a test run, so only check our items are on it.
-    assert {i for p in monday["parts"] for i in p["ingredients"]} <= set(on_list)
-
-    # Monday is bought for, so drawing again leaves it alone.
-    await hass.services.async_call(DOMAIN, "redraw", {}, blocking=True)
+    assert weekly["summary"].splitlines()[0].startswith("pon 16.11: ")
     assert planner.plan["2026-11-16"] == monday
 
-    # Sunday: shops closed, nothing to send.
-    freezer.move_to(local("2026-11-15 17:00:00"))
-    async_fire_time_changed(hass)
-    await hass.async_block_till_done()
-    assert len([c for c in notify_calls if c.data["title"].startswith("Zakupy")]) == 1
 
-
-async def test_presence_mode_waits_until_home(
-    hass_pl: HomeAssistant, freezer: FrozenDateTimeFactory, notify_calls
+async def test_shopping_day_lock_and_to_buy_sensor(
+    hass_pl: HomeAssistant, freezer: FrozenDateTimeFactory
 ) -> None:
     hass = hass_pl
-    hass.states.async_set("person.marzena", "not_home")
-    freezer.move_to(local("2026-11-16 10:00:00"))  # Monday
-    entry = make_entry(shopping_mode="presence", person="person.marzena")
+    freezer.move_to(local("2026-11-13 18:00:00"))  # Friday
+    entry = make_entry()
     await setup_entry(hass, entry)
-    await fill_database(hass, entry)
+    await hass.services.async_call(
+        DOMAIN, "add_meal",
+        {"category": "soup", "name": "Pomidorowa", "ingredients": ["passata", "makaron"]},
+        blocking=True,
+    )
+    await hass.services.async_call(
+        DOMAIN, "add_meal", {"category": "soup", "name": "Grzybowa"}, blocking=True
+    )
+    planner = entry.runtime_data
     await hass.services.async_call(DOMAIN, "redraw", {}, blocking=True)
+    assert "2026-11-16" in planner.plan
 
-    freezer.move_to(local("2026-11-16 17:00:00"))
+    # Friday: Monday can still change.
+    assert not planner.is_locked(dt_util.parse_date("2026-11-16"))
+
+    # Saturday is Monday's shopping day (shops are closed on Sunday): locked.
+    freezer.move_to(local("2026-11-14 08:00:00"))
     async_fire_time_changed(hass)
     await hass.async_block_till_done()
-    assert not [c for c in notify_calls if c.data["title"].startswith("Zakupy")]
+    monday = planner.plan["2026-11-16"]
+    await hass.services.async_call(DOMAIN, "redraw", {}, blocking=True)
+    assert planner.plan["2026-11-16"] == monday
+    with pytest.raises(Exception):
+        await hass.services.async_call(DOMAIN, "redraw", {"date": "2026-11-16"}, blocking=True)
 
-    freezer.move_to(local("2026-11-16 18:30:00"))
-    hass.states.async_set("person.marzena", "home")
+    to_buy = entity(hass, entry, "sensor", "to_buy")
+    planner._on_midnight(dt_util.now())  # refresh the entities
     await hass.async_block_till_done()
-    freezer.tick(timedelta(minutes=14))
-    async_fire_time_changed(hass)
+    state = hass.states.get(to_buy)
+    assert state.attributes["shopping_date"] == "2026-11-14"
+    assert state.attributes["meal_dates"] == ["2026-11-16"]
+    expected = monday["parts"][0]["ingredients"]
+    assert state.attributes["shopping_items"] == expected
+    assert state.state == ", ".join(expected)
+    assert state.attributes["summary"].startswith("pon 16.11: Zupa ")
+
+    # Sunday: nothing to buy today, the next list is Monday's (for Tuesday).
+    freezer.move_to(local("2026-11-15 10:00:00"))
+    planner._on_midnight(dt_util.now())
     await hass.async_block_till_done()
-    assert not [c for c in notify_calls if c.data["title"].startswith("Zakupy")]
-
-    freezer.tick(timedelta(minutes=2))
-    async_fire_time_changed(hass)
-    await hass.async_block_till_done()
-    sent = [c for c in notify_calls if c.data["title"].startswith("Zakupy")]
-    assert len(sent) == 1
-    assert "wt 17.11" in sent[0].data["title"]
+    assert hass.states.get(to_buy).attributes["shopping_date"] == "2026-11-16"
 
 
-async def test_presence_mode_late_arrival_is_skipped(
-    hass_pl: HomeAssistant, freezer: FrozenDateTimeFactory, notify_calls
-) -> None:
+async def test_options_migration_and_old_button_removed(hass_pl: HomeAssistant) -> None:
+    """0.3 entries had notification options and a "send shopping list" button."""
     hass = hass_pl
-    hass.states.async_set("person.marzena", "not_home")
-    freezer.move_to(local("2026-11-16 10:00:00"))
-    entry = make_entry(shopping_mode="presence", person="person.marzena", arrival_delay=0)
-    await setup_entry(hass, entry)
-    await fill_database(hass, entry)
-    await hass.services.async_call(DOMAIN, "redraw", {}, blocking=True)
-
-    freezer.move_to(local("2026-11-16 17:00:00"))
-    async_fire_time_changed(hass)
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        title="Obiady",
+        version=1,
+        minor_version=1,
+        options={
+            **DEFAULT_OPTIONS,
+            "shopping_mode": "time",
+            "shopping_time": "17:00:00",
+            "notify_services": ["notify.mobile_app_phone"],
+            "shopping_list": "todo.shopping_list",
+            "person": "person.x",
+            "arrival_delay": 15,
+        },
+    )
+    entry.add_to_hass(hass)
+    registry = er.async_get(hass)
+    old = registry.async_get_or_create(
+        "button", DOMAIN, f"{entry.entry_id}_send_shopping", config_entry=entry
+    )
+    assert await hass.config_entries.async_setup(entry.entry_id)
     await hass.async_block_till_done()
-
-    freezer.move_to(local("2026-11-16 22:30:00"))
-    hass.states.async_set("person.marzena", "home")
-    await hass.async_block_till_done()
-    async_fire_time_changed(hass)
-    await hass.async_block_till_done()
-    assert not [c for c in notify_calls if c.data["title"].startswith("Zakupy")]
+    assert entry.minor_version == 2
+    assert dict(entry.options) == DEFAULT_OPTIONS
+    assert registry.async_get(old.entity_id) is None
+    assert hass.states.get(entity(hass, entry, "button", "redraw"))
 
 
 async def test_panel_and_hidden_lists(hass_pl: HomeAssistant, hass_client) -> None:
@@ -450,6 +440,8 @@ async def test_panel_and_hidden_lists(hass_pl: HomeAssistant, hass_client) -> No
     assert planner_config["entities"]["plan"] == entity(hass, entry, "calendar", "plan")
     assert planner_config["entry_id"] == entry.entry_id
     assert planner_config["entities"]["redraw"] == entity(hass, entry, "button", "redraw")
+    assert planner_config["entities"]["to_buy"] == entity(hass, entry, "sensor", "to_buy")
+    assert "send_shopping" not in planner_config["entities"]
     assert panel.config["_panel_custom"]["module_url"].startswith("/lunch_planner_static/panel.js?v=")
 
     client = await hass_client()

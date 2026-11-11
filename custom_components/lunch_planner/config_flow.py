@@ -12,36 +12,20 @@ from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers import selector
 
 from .const import (
-    CONF_ARRIVAL_DELAY,
     CONF_AVOID_PREVIOUS_WEEK,
     CONF_DRAW_TIME,
     CONF_DRAW_WEEKDAY,
     CONF_MEAL_DAYS,
     CONF_MEAL_MODE,
     CONF_NO_SHOPPING_DAYS,
-    CONF_NOTIFY,
-    CONF_PERSON,
-    CONF_SHOPPING_LIST,
-    CONF_SHOPPING_MODE,
-    CONF_SHOPPING_TIME,
     CONF_SHOW_PANEL,
     CONF_SOUP_SHARE,
     DEFAULT_OPTIONS,
     DOMAIN,
     MEAL_MODES,
-    SHOPPING_MODES,
     WEEKDAYS,
 )
 from .texts import async_load_texts
-
-# Notify actions that are not a single device.
-_SKIP_NOTIFY = {"notify", "send_message"}
-
-
-def _notify_targets(hass: HomeAssistant) -> list[str]:
-    services = hass.services.async_services().get("notify", {})
-    return sorted(f"notify.{name}" for name in services if name not in _SKIP_NOTIFY)
-
 
 def _weekday_selector(multiple: bool) -> selector.SelectSelector:
     return selector.SelectSelector(
@@ -58,10 +42,6 @@ def _options_schema(hass: HomeAssistant, current: dict[str, Any]) -> vol.Schema:
     def default(key: str) -> dict[str, Any]:
         value = current.get(key, DEFAULT_OPTIONS.get(key))
         return {} if value is None else {"default": value}
-
-    def suggested(key: str) -> dict[str, Any]:
-        value = current.get(key)
-        return {"description": {"suggested_value": value}} if value else {}
 
     return vol.Schema(
         {
@@ -84,37 +64,9 @@ def _options_schema(hass: HomeAssistant, current: dict[str, Any]) -> vol.Schema:
             ): selector.BooleanSelector(),
             vol.Required(CONF_DRAW_WEEKDAY, **default(CONF_DRAW_WEEKDAY)): _weekday_selector(False),
             vol.Required(CONF_DRAW_TIME, **default(CONF_DRAW_TIME)): selector.TimeSelector(),
-            vol.Required(CONF_SHOPPING_MODE, **default(CONF_SHOPPING_MODE)): selector.SelectSelector(
-                selector.SelectSelectorConfig(
-                    options=list(SHOPPING_MODES),
-                    translation_key="shopping_mode",
-                    mode=selector.SelectSelectorMode.LIST,
-                )
-            ),
-            vol.Required(CONF_SHOPPING_TIME, **default(CONF_SHOPPING_TIME)): selector.TimeSelector(),
-            vol.Optional(CONF_PERSON, **suggested(CONF_PERSON)): selector.EntitySelector(
-                selector.EntitySelectorConfig(domain="person")
-            ),
-            vol.Required(CONF_ARRIVAL_DELAY, **default(CONF_ARRIVAL_DELAY)): selector.NumberSelector(
-                selector.NumberSelectorConfig(
-                    min=0, max=120, step=5, unit_of_measurement="min",
-                    mode=selector.NumberSelectorMode.BOX,
-                )
-            ),
             vol.Required(
                 CONF_NO_SHOPPING_DAYS, **default(CONF_NO_SHOPPING_DAYS)
             ): _weekday_selector(True),
-            vol.Optional(CONF_NOTIFY, **default(CONF_NOTIFY)): selector.SelectSelector(
-                selector.SelectSelectorConfig(
-                    options=_notify_targets(hass),
-                    multiple=True,
-                    custom_value=True,
-                    mode=selector.SelectSelectorMode.DROPDOWN,
-                )
-            ),
-            vol.Optional(CONF_SHOPPING_LIST, **suggested(CONF_SHOPPING_LIST)): selector.EntitySelector(
-                selector.EntitySelectorConfig(domain="todo")
-            ),
             vol.Required(CONF_SHOW_PANEL, **default(CONF_SHOW_PANEL)): selector.BooleanSelector(),
         }
     )
@@ -123,7 +75,6 @@ def _options_schema(hass: HomeAssistant, current: dict[str, Any]) -> vol.Schema:
 def _clean(user_input: dict[str, Any]) -> dict[str, Any]:
     data = dict(user_input)
     data[CONF_SOUP_SHARE] = int(data[CONF_SOUP_SHARE])
-    data[CONF_ARRIVAL_DELAY] = int(data[CONF_ARRIVAL_DELAY])
     return data
 
 
@@ -131,6 +82,8 @@ class LunchPlannerConfigFlow(ConfigFlow, domain=DOMAIN):
     """Create a planner: a name first, then the same settings as in Configure."""
 
     VERSION = 1
+    # 1.2: the notification options moved out to automations (blueprints).
+    MINOR_VERSION = 2
 
     def __init__(self) -> None:
         self._name: str | None = None

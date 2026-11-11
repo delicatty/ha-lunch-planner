@@ -342,12 +342,12 @@ class LunchPlannerPanel extends HTMLElement {
       const calendarBox = el("div");
       content.appendChild(el("div", { class: "plan" }, stack, calendarBox));
 
-      for (const key of ["today", "tomorrow", "next_shopping"]) {
+      for (const key of ["today", "tomorrow", "next_shopping", "to_buy"]) {
         if (e[key]) {
           this._card(helpers, { type: "tile", entity: e[key], name: this._name(e[key], planner.title) }, stack);
         }
       }
-      for (const [key, confirm] of [["redraw", texts.redrawConfirm], ["send_shopping", null]]) {
+      for (const [key, confirm] of [["redraw", texts.redrawConfirm]]) {
         if (!e[key]) continue;
         const tapAction = {
           action: "perform-action",
