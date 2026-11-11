@@ -142,12 +142,12 @@ async def test_setup_creates_entities_and_first_plan(
         return_response=True,
     )
     plan_events = next(iter(events.values()))["events"]
-    # At the default lunch time, 13:00, for an hour.
+    # At the default lunch time, 13:00, for the default 30 minutes.
     assert [e["start"] for e in plan_events] == [
         "2026-11-12T13:00:00+01:00", "2026-11-13T13:00:00+01:00"
     ]
     assert [e["end"] for e in plan_events] == [
-        "2026-11-12T14:00:00+01:00", "2026-11-13T14:00:00+01:00"
+        "2026-11-12T13:30:00+01:00", "2026-11-13T13:30:00+01:00"
     ]
     for event in plan_events:
         assert event["summary"].startswith("Obiad: ")
@@ -163,7 +163,7 @@ async def test_calendar_uses_the_lunch_time(
 ) -> None:
     hass = hass_pl
     freezer.move_to(local("2026-11-12 13:10:00"))  # Thursday, during lunch
-    entry = make_entry(lunch_time="12:30:00")
+    entry = make_entry(lunch_time="12:30:00", lunch_duration=60)
     await setup_entry(hass, entry)
     await fill_database(hass, entry)
     planner = entry.runtime_data

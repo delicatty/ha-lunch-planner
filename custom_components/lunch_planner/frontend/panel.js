@@ -71,7 +71,7 @@ const STYLE = `
   h3 { font-size: 16px; font-weight: 500; margin: 20px 4px 8px; color: var(--secondary-text-color); }
   .plan { display: grid; grid-template-columns: minmax(280px, 1fr) minmax(320px, 2fr); gap: 16px; align-items: start; }
   .stack { display: grid; gap: 8px; }
-  .actions-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 8px; }
+  .side h2 { margin-top: 16px; }
   .lists { display: grid; gap: 16px; align-items: start; }
   .lists.two { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .lists.three { grid-template-columns: repeat(3, minmax(0, 1fr)); }
@@ -355,9 +355,11 @@ class LunchPlannerPanel extends HTMLElement {
       if (planners.length > 1) content.appendChild(el("h1", {}, planner.title));
 
       content.appendChild(el("h2", {}, texts.plan));
+      // Left column: the plan tiles and, right under them, the actions.
       const stack = el("div", { class: "stack" });
+      const side = el("div", { class: "side" }, stack);
       const calendarBox = el("div");
-      content.appendChild(el("div", { class: "plan" }, stack, calendarBox));
+      content.appendChild(el("div", { class: "plan" }, side, calendarBox));
 
       for (const key of ["today", "tomorrow", "next_shopping", "to_buy"]) {
         if (e[key]) {
@@ -369,9 +371,8 @@ class LunchPlannerPanel extends HTMLElement {
       }
 
       if (e.redraw) {
-        content.appendChild(el("h2", {}, texts.actions));
-        const actions = el("div", { class: "actions-grid" });
-        content.appendChild(actions);
+        const actions = el("div", { class: "stack" });
+        side.append(el("h2", {}, texts.actions), actions);
         // Tapping the tile or its icon asks first; holding does nothing.
         const press = {
           action: "perform-action",

@@ -1,12 +1,39 @@
-name: Tests
+name: CI
 
 on:
   push:
+    branches: [main]
   pull_request:
   workflow_dispatch:
+  schedule:
+    # Weekly, so a change in Home Assistant's rules shows up without a commit.
+    - cron: "0 6 * * 1"
+
+# A newer push to the same branch cancels the run that is still going.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
+  hassfest:
+    name: Home Assistant (hassfest)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: home-assistant/actions/hassfest@master
+
+  hacs:
+    name: HACS / Marketplace
+    runs-on: ubuntu-latest
+    steps:
+      - uses: hacs/action@main
+        with:
+          category: integration
+          # The integration is not listed in home-assistant/brands.
+          ignore: brands
+
   pytest:
+    name: Tests (pytest)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5

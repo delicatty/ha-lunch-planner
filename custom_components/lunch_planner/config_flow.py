@@ -15,6 +15,7 @@ from .const import (
     CONF_AVOID_PREVIOUS_WEEK,
     CONF_DRAW_TIME,
     CONF_DRAW_WEEKDAY,
+    CONF_LUNCH_DURATION,
     CONF_LUNCH_TIME,
     CONF_MEAL_DAYS,
     CONF_MEAL_MODE,
@@ -69,6 +70,12 @@ def _options_schema(hass: HomeAssistant, current: dict[str, Any]) -> vol.Schema:
                 CONF_NO_SHOPPING_DAYS, **default(CONF_NO_SHOPPING_DAYS)
             ): _weekday_selector(True),
             vol.Required(CONF_LUNCH_TIME, **default(CONF_LUNCH_TIME)): selector.TimeSelector(),
+            vol.Required(CONF_LUNCH_DURATION, **default(CONF_LUNCH_DURATION)): selector.NumberSelector(
+                selector.NumberSelectorConfig(
+                    min=5, max=240, step=5, unit_of_measurement="min",
+                    mode=selector.NumberSelectorMode.BOX,
+                )
+            ),
             vol.Required(CONF_SHOW_PANEL, **default(CONF_SHOW_PANEL)): selector.BooleanSelector(),
         }
     )
@@ -77,6 +84,7 @@ def _options_schema(hass: HomeAssistant, current: dict[str, Any]) -> vol.Schema:
 def _clean(user_input: dict[str, Any]) -> dict[str, Any]:
     data = dict(user_input)
     data[CONF_SOUP_SHARE] = int(data[CONF_SOUP_SHARE])
+    data[CONF_LUNCH_DURATION] = int(data[CONF_LUNCH_DURATION])
     return data
 
 

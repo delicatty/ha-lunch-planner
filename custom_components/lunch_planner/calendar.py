@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import date, datetime, time
+from datetime import date, datetime, time, timedelta
 from typing import Any
 
 from homeassistant.components.calendar import CalendarEntity, CalendarEvent
@@ -11,7 +11,7 @@ from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 from homeassistant.util import dt as dt_util
 
 from . import LunchPlannerConfigEntry
-from .const import CONF_LUNCH_TIME, LUNCH_DURATION
+from .const import CONF_LUNCH_DURATION, CONF_LUNCH_TIME
 from .entity import LunchPlannerEntity
 from .manager import LunchPlanner
 
@@ -40,7 +40,7 @@ def _event(planner: LunchPlanner, meal: dict[str, Any]) -> CalendarEvent:
     )
     return CalendarEvent(
         start=start,
-        end=start + LUNCH_DURATION,
+        end=start + timedelta(minutes=int(planner.option(CONF_LUNCH_DURATION))),
         summary=planner.event_title(meal),
         description=description,
         uid=meal["date"],
