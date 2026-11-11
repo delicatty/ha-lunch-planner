@@ -4,20 +4,39 @@ from __future__ import annotations
 
 from pathlib import Path
 import shutil
+from unittest.mock import patch
 
 import pytest
+import voluptuous as vol
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from homeassistant.components import automation
 from homeassistant.components.blueprint import models
 from homeassistant.components.blueprint.schemas import BLUEPRINT_SCHEMA
 from homeassistant.core import HomeAssistant
-from homeassistant.helpers import device_registry as dr
+from homeassistant.helpers import config_validation as cv, device_registry as dr
 from homeassistant.setup import async_setup_component
 from homeassistant.util.yaml import load_yaml
 
 SOURCE = Path(__file__).parents[1] / "blueprints" / "automation" / "lunch_planner"
 BLUEPRINTS = sorted(p.name for p in SOURCE.glob("*.yaml"))
+
+# The phone notification is a mobile_app device action. Loading the real one
+# imports mobile_app, which pulls in a dozen integrations with native
+# requirements (camera, cloud, voice), so these tests check the device action
+# against the fields mobile_app accepts instead.
+_MOBILE_APP_NOTIFY = cv.DEVICE_ACTION_BASE_SCHEMA.extend(
+    {
+        vol.Required("type"): "notify",
+        vol.Required("message"): cv.template,
+        vol.Optional("title"): cv.template,
+        vol.Optional("data"): cv.template_complex,
+    }
+)
+
+
+async def _validate_device_action(hass, config):
+    return _MOBILE_APP_NOTIFY(config)
 
 
 @pytest.mark.parametrize("name", BLUEPRINTS)
@@ -48,39 +67,43 @@ async def test_automations_from_blueprints_load(
     for name in BLUEPRINTS:
         shutil.copy(SOURCE / name, target / name)
     try:
-        assert await async_setup_component(
-            hass,
-            automation.DOMAIN,
-            {
-                automation.DOMAIN: [
-                    {
-                        "id": "shopping",
-                        "alias": "Shopping",
-                        "use_blueprint": {
-                            "path": "lunch_planner/shopping_list.yaml",
-                            "input": {
-                                "to_buy_sensor": "sensor.obiady_do_kupienia",
-                                "notify_device": phone,
-                                "shopping_lists": ["todo.shopping_list"],
-                                "person": "person.marzena",
+        with patch(
+            "homeassistant.components.device_automation.action.async_validate_action_config",
+            _validate_device_action,
+        ):
+            assert await async_setup_component(
+                hass,
+                automation.DOMAIN,
+                {
+                    automation.DOMAIN: [
+                        {
+                            "id": "shopping",
+                            "alias": "Shopping",
+                            "use_blueprint": {
+                                "path": "lunch_planner/shopping_list.yaml",
+                                "input": {
+                                    "to_buy_sensor": "sensor.obiady_do_kupienia",
+                                    "notify_device": phone,
+                                    "shopping_lists": ["todo.shopping_list"],
+                                    "person": "person.marzena",
+                                },
                             },
                         },
-                    },
-                    {
-                        "id": "plan",
-                        "alias": "Plan",
-                        "use_blueprint": {
-                            "path": "lunch_planner/weekly_plan.yaml",
-                            "input": {
-                                "redraw_button": "button.obiady_losuj",
-                                "notify_device": phone,
+                        {
+                            "id": "plan",
+                            "alias": "Plan",
+                            "use_blueprint": {
+                                "path": "lunch_planner/weekly_plan.yaml",
+                                "input": {
+                                    "redraw_button": "button.obiady_losuj",
+                                    "notify_device": phone,
+                                },
                             },
                         },
-                    },
-                ]
-            },
-        )
-        await hass.async_block_till_done()
+                    ]
+                },
+            )
+            await hass.async_block_till_done()
         for entity_id in ("automation.shopping", "automation.plan"):
             state = hass.states.get(entity_id)
             errors = [
