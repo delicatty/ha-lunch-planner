@@ -110,8 +110,7 @@
         "add": "Add",
         "empty": "Nothing here yet.",
         "to_buy": "Buy",
-        "draw": "Draw",
-        "draw_help": "Switched off: the meal stays here but is not drawn.",
+        "draw": "Include in the draw",
         "redraw_confirm": "Draw all upcoming lunches again? Lunches already shopped for stay.",
         "add_title": "Add meal",
         "edit_title": "Edit meal",
@@ -127,7 +126,8 @@
         "save": "Save",
         "delete": "Delete",
         "delete_confirm": "Delete this meal?",
-        "error": "Could not save"
+        "error": "Could not save",
+        "not_drawn": "not drawn"
       }
     },
     "notification": {

@@ -18,7 +18,7 @@ const TEXT_KEYS = {
   empty: "empty",
   toBuy: "to_buy",
   draw: "draw",
-  drawHelp: "draw_help",
+  notDrawn: "not_drawn",
   redrawConfirm: "redraw_confirm",
   addTitle: "add_title",
   editTitle: "edit_title",
@@ -107,8 +107,23 @@ const STYLE = `
     vertical-align: middle;
   }
   .empty { padding: 12px 16px 16px; color: var(--secondary-text-color); font-size: 14px; border-top: 1px solid var(--divider-color, #e0e0e0); }
-  .switch { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--secondary-text-color); cursor: pointer; }
-  .switch input { width: 34px; height: 20px; accent-color: var(--primary-color); cursor: pointer; margin: 0; }
+  /* A switch like Home Assistant's own, built from a checkbox. */
+  input.toggle {
+    appearance: none; -webkit-appearance: none; flex: none;
+    position: relative; width: 36px; height: 20px; margin: 0; border-radius: 10px;
+    background: var(--switch-unchecked-track-color, rgba(0, 0, 0, 0.26)); cursor: pointer;
+    transition: background 0.15s;
+  }
+  input.toggle::before {
+    content: ""; position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; border-radius: 50%;
+    background: var(--switch-unchecked-button-color, #fafafa); box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+    transition: transform 0.15s;
+  }
+  input.toggle:checked { background: var(--switch-checked-track-color, var(--primary-color)); }
+  input.toggle:checked::before { transform: translateX(16px); background: var(--switch-checked-button-color, #fff); }
+  input.toggle:focus-visible { outline: 2px solid var(--primary-color); outline-offset: 2px; }
+  .chip.off { background: var(--disabled-color, rgba(0, 0, 0, 0.12)); color: var(--secondary-text-color); }
+  .toggle-row { display: flex; align-items: center; gap: 12px; font-size: 15px; color: var(--primary-text-color); cursor: pointer; }
   dialog {
     border: none; border-radius: var(--ha-dialog-border-radius, 24px); padding: 0;
     width: min(480px, calc(100vw - 32px));
@@ -416,8 +431,11 @@ class LunchPlannerPanel extends HTMLElement {
       const toggle = el("input", {
         type: "checkbox",
         role: "switch",
+        class: "toggle",
         checked: meal.active,
-        title: texts.drawHelp,
+        title: texts.draw,
+        "aria-label": `${texts.draw}: ${meal.name}`,
+        onclick: (ev) => ev.stopPropagation(),
         onchange: (ev) => this._save(entryId, category, { ...meal, active: ev.target.checked }),
       });
       card.appendChild(
@@ -427,17 +445,18 @@ class LunchPlannerPanel extends HTMLElement {
           el(
             "div",
             { class: "meal-text" },
-            el("div", { class: "name" }, meal.name, season ? el("span", { class: "chip" }, season) : null),
+            el(
+              "div",
+              { class: "name" },
+              meal.name,
+              season ? el("span", { class: "chip" }, season) : null,
+              meal.active ? null : el("span", { class: "chip off" }, texts.notDrawn),
+            ),
             meal.ingredients.length
               ? el("div", { class: "details" }, `${texts.toBuy}: ${meal.ingredients.join(", ")}`)
               : null,
           ),
-          el(
-            "label",
-            { class: "switch", title: texts.drawHelp, onclick: (ev) => ev.stopPropagation() },
-            toggle,
-            texts.draw,
-          ),
+          toggle,
         ),
       );
     }
@@ -489,7 +508,12 @@ class LunchPlannerPanel extends HTMLElement {
     someMonths.addEventListener("change", syncMonths);
     syncMonths();
 
-    const active = el("input", { type: "checkbox", role: "switch", checked: meal ? meal.active : true });
+    const active = el("input", {
+      type: "checkbox",
+      role: "switch",
+      class: "toggle",
+      checked: meal ? meal.active : true,
+    });
     const error = el("div", { class: "error" });
     const saveButton = el("button", { class: "primary", type: "submit" }, texts.save);
     const syncSave = () => {
@@ -532,7 +556,7 @@ class LunchPlannerPanel extends HTMLElement {
         el("label", { class: "radio" }, someMonths, texts.months),
         monthsRow,
       ),
-      el("label", { class: "radio" }, active, texts.draw, el("span", { class: "hint" }, `(${texts.drawHelp})`)),
+      el("label", { class: "toggle-row" }, active, texts.draw),
       error,
       el(
         "div",

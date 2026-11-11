@@ -110,8 +110,7 @@
         "add": "Dodaj",
         "empty": "Jeszcze nic tu nie ma.",
         "to_buy": "Kupić",
-        "draw": "Losuj",
-        "draw_help": "Wyłączone: danie zostaje w bazie, ale nie jest losowane.",
+        "draw": "Uwzględniaj w losowaniu",
         "redraw_confirm": "Wylosować ponownie wszystkie nadchodzące obiady? Te, na które już zrobiono zakupy, zostaną.",
         "add_title": "Dodaj danie",
         "edit_title": "Edytuj danie",
@@ -127,7 +126,8 @@
         "save": "Zapisz",
         "delete": "Usuń",
         "delete_confirm": "Usunąć to danie?",
-        "error": "Nie udało się zapisać"
+        "error": "Nie udało się zapisać",
+        "not_drawn": "nie losowane"
       }
     },
     "notification": {
