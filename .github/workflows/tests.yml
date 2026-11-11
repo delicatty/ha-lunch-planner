@@ -15,13 +15,17 @@ jobs:
           python-version: "3.14"
       - name: Install test requirements
         run: pip install -r requirements_test.txt
-      - name: Install the Home Assistant frontend (the panel tests serve it)
+      - name: Install requirements of the Home Assistant integrations the tests load
+        # frontend: the panel tests serve it; mobile_app: the blueprint tests
+        # use its device action.
         run: |
-          python - <<'PY' > frontend-requirements.txt
-          import json, pathlib, homeassistant.components.frontend as frontend
-          manifest = pathlib.Path(frontend.__file__).parent / "manifest.json"
-          print("\n".join(json.loads(manifest.read_text())["requirements"]))
+          python - <<'PY' > integration-requirements.txt
+          import importlib, json, pathlib
+          for name in ("frontend", "mobile_app"):
+              module = importlib.import_module(f"homeassistant.components.{name}")
+              manifest = pathlib.Path(module.__file__).parent / "manifest.json"
+              print("\n".join(json.loads(manifest.read_text())["requirements"]))
           PY
-          pip install -r frontend-requirements.txt
+          pip install -r integration-requirements.txt
       - name: Run tests
         run: pytest
