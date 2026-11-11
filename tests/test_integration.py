@@ -2,20 +2,26 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 
 from freezegun.api import FrozenDateTimeFactory
 import pytest
 from pytest_homeassistant_custom_component.common import (
     MockConfigEntry,
+    MockModule,
+    MockPlatform,
     async_fire_time_changed,
+    mock_integration,
+    mock_platform,
 )
 
+from homeassistant.components.calendar import CalendarEntity, CalendarEvent
 from homeassistant.config_entries import ConfigEntryState
 from homeassistant.core import HomeAssistant
 from homeassistant.data_entry_flow import FlowResultType
 from homeassistant.exceptions import ServiceValidationError
 from homeassistant.helpers import entity_registry as er
+from homeassistant.setup import async_setup_component
 from homeassistant.util import dt as dt_util
 
 from custom_components.lunch_planner.const import DEFAULT_OPTIONS, DOMAIN
@@ -39,7 +45,7 @@ def make_entry(**options) -> MockConfigEntry:
         domain=DOMAIN,
         title="Obiady",
         version=1,
-        minor_version=2,
+        minor_version=3,
         options={**DEFAULT_OPTIONS, **options},
     )
 
@@ -81,9 +87,13 @@ async def test_config_flow(hass_pl: HomeAssistant) -> None:
     result = await hass.config_entries.flow.async_configure(result["flow_id"], {"name": "Obiady"})
     assert result["step_id"] == "settings"
 
-    bad = {**DEFAULT_OPTIONS, "meal_days": []}
+    bad = {**DEFAULT_OPTIONS, "workdays": []}
     result = await hass.config_entries.flow.async_configure(result["flow_id"], bad)
-    assert result["errors"] == {"meal_days": "no_meal_days"}
+    assert result["errors"] == {"workdays": "no_workdays"}
+    every_day_worked = {**DEFAULT_OPTIONS, "meal_schedule": "weekends",
+                        "workdays": ["mon", "tue", "wed", "thu", "fri", "sat", "sun"]}
+    result = await hass.config_entries.flow.async_configure(result["flow_id"], every_day_worked)
+    assert result["errors"] == {"workdays": "no_weekend_days"}
 
     result = await hass.config_entries.flow.async_configure(
         result["flow_id"], {**DEFAULT_OPTIONS, "soup_share": 40.0}
@@ -440,7 +450,8 @@ async def test_options_migration_and_old_button_removed(hass_pl: HomeAssistant) 
         version=1,
         minor_version=1,
         options={
-            **DEFAULT_OPTIONS,
+            **{k: v for k, v in DEFAULT_OPTIONS.items() if k not in ("meal_schedule", "workdays")},
+            "meal_days": ["mon", "tue", "wed", "thu", "fri"],
             "shopping_mode": "time",
             "shopping_time": "17:00:00",
             "notify_services": ["notify.mobile_app_phone"],
@@ -456,7 +467,7 @@ async def test_options_migration_and_old_button_removed(hass_pl: HomeAssistant) 
     )
     assert await hass.config_entries.async_setup(entry.entry_id)
     await hass.async_block_till_done()
-    assert entry.minor_version == 2
+    assert entry.minor_version == 3
     assert dict(entry.options) == DEFAULT_OPTIONS
     assert registry.async_get(old.entity_id) is None
     assert hass.states.get(entity(hass, entry, "button", "redraw"))
@@ -502,3 +513,163 @@ async def test_unload_and_remove(hass_pl: HomeAssistant) -> None:
     assert await hass.config_entries.async_unload(entry.entry_id)
     assert entry.state is ConfigEntryState.NOT_LOADED
     await hass.config_entries.async_remove(entry.entry_id)
+
+
+async def test_meal_days_become_work_days(hass_pl: HomeAssistant) -> None:
+    """0.5 had a list of meal days; it becomes the work days, lunches on work days."""
+    hass = hass_pl
+    old = {k: v for k, v in DEFAULT_OPTIONS.items() if k not in ("meal_schedule", "workdays")}
+    entry = MockConfigEntry(
+        domain=DOMAIN, title="Obiady", version=1, minor_version=2,
+        options={**old, "meal_days": ["mon", "wed", "fri"]},
+    )
+    await setup_entry(hass, entry)
+    assert entry.minor_version == 3
+    assert entry.options["workdays"] == ["mon", "wed", "fri"]
+    assert entry.options["meal_schedule"] == "workdays"
+    assert "meal_days" not in entry.options
+    assert entry.runtime_data.meal_weekdays == [0, 2, 4]
+
+
+@pytest.mark.parametrize(
+    ("schedule", "weekdays"),
+    [("workdays", [0, 1, 2, 3, 4]), ("weekends", [5, 6]), ("every_day", [0, 1, 2, 3, 4, 5, 6])],
+)
+async def test_meal_schedule(hass_pl: HomeAssistant, schedule: str, weekdays: list[int]) -> None:
+    hass = hass_pl
+    entry = make_entry(meal_schedule=schedule)
+    await setup_entry(hass, entry)
+    assert entry.runtime_data.meal_weekdays == weekdays
+
+
+class FakeCalendar(CalendarEntity):
+    """A calendar whose all-day events are set by the test."""
+
+    def __init__(self, name: str, days: list[str]) -> None:
+        self._attr_name = name
+        self._attr_unique_id = name
+        self.days = days
+
+    @property
+    def event(self) -> CalendarEvent | None:
+        return None
+
+    async def async_get_events(self, hass, start_date, end_date) -> list[CalendarEvent]:
+        events = [
+            CalendarEvent(
+                start=date.fromisoformat(d),
+                end=date.fromisoformat(d) + timedelta(days=1),
+                summary=self.name,
+            )
+            for d in self.days
+        ]
+        # A meeting with a time of day is not a day off.
+        events.append(
+            CalendarEvent(
+                start=local("2026-12-21 10:00:00"),
+                end=local("2026-12-21 11:00:00"),
+                summary="Meeting",
+            )
+        )
+        return events
+
+
+async def setup_calendars(hass: HomeAssistant) -> tuple[FakeCalendar, FakeCalendar]:
+    """A public holidays calendar (Holiday integration) and a holiday trip calendar."""
+    holidays = FakeCalendar("Holidays", ["2026-12-24", "2026-12-25", "2026-12-26"])
+    trips = FakeCalendar("Trips", ["2026-12-22"])
+    for platform, calendar in (("holiday", holidays), ("trips", trips)):
+        mock_integration(hass, MockModule(platform))
+
+        async def setup_platform(hass, config, add_entities, discovery_info=None, calendar=calendar):
+            add_entities([calendar])
+
+        mock_platform(hass, f"{platform}.calendar", MockPlatform(async_setup_platform=setup_platform))
+    assert await async_setup_component(
+        hass, "calendar", {"calendar": [{"platform": "holiday"}, {"platform": "trips"}]}
+    )
+    await hass.async_block_till_done()
+    return holidays, trips
+
+
+async def test_days_off_and_morning_shopping(
+    hass_pl: HomeAssistant, freezer: FrozenDateTimeFactory
+) -> None:
+    hass = hass_pl
+    freezer.move_to(local("2026-12-21 10:00:00"))  # Monday before Christmas
+    _, trips = await setup_calendars(hass)
+    entry = make_entry(days_off_calendars=["calendar.holidays", "calendar.trips"])
+    await setup_entry(hass, entry)
+    await fill_database(hass, entry)
+    planner = entry.runtime_data
+
+    # Tuesday is a trip, Thursday and Friday are holidays: only Wednesday.
+    response = await hass.services.async_call(
+        DOMAIN, "redraw", {}, blocking=True, return_response=True
+    )
+    assert response == {"dates": ["2026-12-23"]}
+    # The trip closes no shops; the holidays do.
+    assert date(2026, 12, 22) not in planner.shops_closed
+    assert date(2026, 12, 24) in planner.shops_closed
+    assert planner.shopping_day(date(2026, 12, 23)) == date(2026, 12, 22)
+
+    # Monday 28.12: 24-27.12 closed, so it is bought that morning; the list
+    # goes out on Sunday evening.
+    await hass.services.async_call(DOMAIN, "redraw", {"date": "2026-12-28"}, blocking=True)
+    assert planner.shopping_day(date(2026, 12, 28)) == date(2026, 12, 28)
+    with pytest.raises(Exception):
+        await hass.services.async_call(DOMAIN, "redraw", {"date": "2026-12-24"}, blocking=True)
+
+    # A trip added after the draw removes Wednesday's lunch at midnight.
+    trips.days = ["2026-12-22", "2026-12-23"]
+    planner._on_midnight(dt_util.now())
+    await hass.async_block_till_done()
+    assert "2026-12-23" not in planner.plan
+    assert "2026-12-28" in planner.plan
+
+    freezer.move_to(local("2026-12-27 18:00:00"))
+    planner._on_midnight(dt_util.now())
+    await hass.async_block_till_done()
+    state = hass.states.get(entity(hass, entry, "sensor", "to_buy"))
+    assert state.attributes["shopping_date"] == "2026-12-28"
+    assert state.attributes["shopping_morning"] is True
+    assert state.attributes["list_date"] == "2026-12-27"
+    assert state.attributes["meal_dates"] == ["2026-12-28"]
+    assert planner.is_locked(date(2026, 12, 28))
+
+    # The list is out: a trip added now keeps the lunch.
+    trips.days = ["2026-12-28"]
+    planner._on_midnight(dt_util.now())
+    await hass.async_block_till_done()
+    assert "2026-12-28" in planner.plan
+
+
+async def test_holiday_shops_open_when_switched_off(
+    hass_pl: HomeAssistant, freezer: FrozenDateTimeFactory
+) -> None:
+    hass = hass_pl
+    freezer.move_to(local("2026-12-21 10:00:00"))
+    await setup_calendars(hass)
+    entry = make_entry(days_off_calendars=["calendar.holidays"], holiday_shops_closed=False)
+    await setup_entry(hass, entry)
+    planner = entry.runtime_data
+    assert planner.days_off == {date(2026, 12, 24), date(2026, 12, 25), date(2026, 12, 26)}
+    assert planner.shops_closed == set()
+    # Saturday 26.12 is open now, two days before Monday.
+    assert planner.shopping_day(date(2026, 12, 28)) == date(2026, 12, 26)
+
+
+async def test_days_off_far_ahead(
+    hass_pl: HomeAssistant, freezer: FrozenDateTimeFactory
+) -> None:
+    """Drawing one day weeks ahead reads the days-off calendars that far."""
+    hass = hass_pl
+    freezer.move_to(local("2026-11-11 12:00:00"))
+    await setup_calendars(hass)
+    entry = make_entry(days_off_calendars=["calendar.holidays"])
+    await setup_entry(hass, entry)
+    await fill_database(hass, entry)
+    with pytest.raises(Exception):
+        await hass.services.async_call(DOMAIN, "redraw", {"date": "2026-12-24"}, blocking=True)
+    await hass.services.async_call(DOMAIN, "redraw", {"date": "2026-12-23"}, blocking=True)
+    assert "2026-12-23" in entry.runtime_data.plan

@@ -9,22 +9,28 @@ import voluptuous as vol
 from homeassistant.config_entries import ConfigEntry, ConfigFlow, ConfigFlowResult, OptionsFlow
 from homeassistant.const import CONF_NAME
 from homeassistant.core import HomeAssistant, callback
-from homeassistant.helpers import selector
+from homeassistant.helpers import entity_registry as er, selector
 
 from .const import (
     CONF_AVOID_PREVIOUS_WEEK,
+    CONF_DAYS_OFF_CALENDARS,
     CONF_DRAW_TIME,
     CONF_DRAW_WEEKDAY,
+    CONF_HOLIDAY_SHOPS_CLOSED,
     CONF_LUNCH_DURATION,
     CONF_LUNCH_TIME,
-    CONF_MEAL_DAYS,
     CONF_MEAL_MODE,
+    CONF_MEAL_SCHEDULE,
     CONF_NO_SHOPPING_DAYS,
     CONF_SHOW_PANEL,
     CONF_SOUP_SHARE,
+    CONF_WORKDAYS,
     DEFAULT_OPTIONS,
     DOMAIN,
     MEAL_MODES,
+    MEAL_SCHEDULES,
+    SCHEDULE_EVERY_DAY,
+    SCHEDULE_WEEKENDS,
     WEEKDAYS,
 )
 from .texts import async_load_texts
@@ -40,14 +46,34 @@ def _weekday_selector(multiple: bool) -> selector.SelectSelector:
     )
 
 
-def _options_schema(hass: HomeAssistant, current: dict[str, Any]) -> vol.Schema:
+def _options_schema(
+    hass: HomeAssistant, current: dict[str, Any], entry_id: str | None = None
+) -> vol.Schema:
     def default(key: str) -> dict[str, Any]:
         value = current.get(key, DEFAULT_OPTIONS.get(key))
         return {} if value is None else {"default": value}
 
+    # The planner's own calendar cannot hold its days off.
+    own_calendars = (
+        [
+            e.entity_id
+            for e in er.async_entries_for_config_entry(er.async_get(hass), entry_id)
+            if e.domain == "calendar"
+        ]
+        if entry_id
+        else []
+    )
+
     return vol.Schema(
         {
-            vol.Required(CONF_MEAL_DAYS, **default(CONF_MEAL_DAYS)): _weekday_selector(True),
+            vol.Required(CONF_MEAL_SCHEDULE, **default(CONF_MEAL_SCHEDULE)): selector.SelectSelector(
+                selector.SelectSelectorConfig(
+                    options=list(MEAL_SCHEDULES),
+                    translation_key="meal_schedule",
+                    mode=selector.SelectSelectorMode.LIST,
+                )
+            ),
+            vol.Required(CONF_WORKDAYS, **default(CONF_WORKDAYS)): _weekday_selector(True),
             vol.Required(CONF_MEAL_MODE, **default(CONF_MEAL_MODE)): selector.SelectSelector(
                 selector.SelectSelectorConfig(
                     options=list(MEAL_MODES),
@@ -69,6 +95,18 @@ def _options_schema(hass: HomeAssistant, current: dict[str, Any]) -> vol.Schema:
             vol.Required(
                 CONF_NO_SHOPPING_DAYS, **default(CONF_NO_SHOPPING_DAYS)
             ): _weekday_selector(True),
+            # Optional with a suggested value, so the field can be cleared.
+            vol.Optional(
+                CONF_DAYS_OFF_CALENDARS,
+                description={"suggested_value": current.get(CONF_DAYS_OFF_CALENDARS, [])},
+            ): selector.EntitySelector(
+                selector.EntitySelectorConfig(
+                    domain="calendar", multiple=True, exclude_entities=own_calendars
+                )
+            ),
+            vol.Required(
+                CONF_HOLIDAY_SHOPS_CLOSED, **default(CONF_HOLIDAY_SHOPS_CLOSED)
+            ): selector.BooleanSelector(),
             vol.Required(CONF_LUNCH_TIME, **default(CONF_LUNCH_TIME)): selector.TimeSelector(),
             vol.Required(CONF_LUNCH_DURATION, **default(CONF_LUNCH_DURATION)): selector.NumberSelector(
                 selector.NumberSelectorConfig(
@@ -85,6 +123,7 @@ def _clean(user_input: dict[str, Any]) -> dict[str, Any]:
     data = dict(user_input)
     data[CONF_SOUP_SHARE] = int(data[CONF_SOUP_SHARE])
     data[CONF_LUNCH_DURATION] = int(data[CONF_LUNCH_DURATION])
+    data.setdefault(CONF_DAYS_OFF_CALENDARS, [])
     return data
 
 
@@ -93,7 +132,9 @@ class LunchPlannerConfigFlow(ConfigFlow, domain=DOMAIN):
 
     VERSION = 1
     # 1.2: the notification options moved out to automations (blueprints).
-    MINOR_VERSION = 2
+    # 1.3: "meal days" became a schedule (work days, weekends, every day) and
+    # a list of work days.
+    MINOR_VERSION = 3
 
     def __init__(self) -> None:
         self._name: str | None = None
@@ -128,8 +169,12 @@ class LunchPlannerConfigFlow(ConfigFlow, domain=DOMAIN):
 
 def _validate(user_input: dict[str, Any]) -> dict[str, str]:
     errors: dict[str, str] = {}
-    if not user_input.get(CONF_MEAL_DAYS):
-        errors[CONF_MEAL_DAYS] = "no_meal_days"
+    schedule = user_input.get(CONF_MEAL_SCHEDULE)
+    workdays = user_input.get(CONF_WORKDAYS) or []
+    if schedule != SCHEDULE_EVERY_DAY and not workdays:
+        errors[CONF_WORKDAYS] = "no_workdays"
+    elif schedule == SCHEDULE_WEEKENDS and len(set(workdays)) >= 7:
+        errors[CONF_WORKDAYS] = "no_weekend_days"
     if len(user_input.get(CONF_NO_SHOPPING_DAYS, [])) >= 7:
         errors[CONF_NO_SHOPPING_DAYS] = "no_shopping_day_left"
     return errors
@@ -144,6 +189,10 @@ class LunchPlannerOptionsFlow(OptionsFlow):
             return self.async_create_entry(data=_clean(user_input))
         return self.async_show_form(
             step_id="init",
-            data_schema=_options_schema(self.hass, user_input or dict(self.config_entry.options)),
+            data_schema=_options_schema(
+                self.hass,
+                user_input or dict(self.config_entry.options),
+                self.config_entry.entry_id,
+            ),
             errors=errors,
         )

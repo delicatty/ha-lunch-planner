@@ -30,20 +30,30 @@ WEEKDAYS = ("mon", "tue", "wed", "thu", "fri", "sat", "sun")
 
 MEAL_MODES = (MODE_SOUP_OR_MAIN, MODE_SOUP_AND_MAIN, MODE_SOUP_ONLY, MODE_MAIN_ONLY)
 
+# Which days have a lunch: the work days, the other days, or every day.
+SCHEDULE_WORKDAYS = "workdays"
+SCHEDULE_WEEKENDS = "weekends"
+SCHEDULE_EVERY_DAY = "every_day"
+MEAL_SCHEDULES = (SCHEDULE_WORKDAYS, SCHEDULE_WEEKENDS, SCHEDULE_EVERY_DAY)
+
 # Options
-CONF_MEAL_DAYS = "meal_days"
+CONF_MEAL_SCHEDULE = "meal_schedule"
+CONF_WORKDAYS = "workdays"
 CONF_MEAL_MODE = "meal_mode"
 CONF_SOUP_SHARE = "soup_share"
 CONF_AVOID_PREVIOUS_WEEK = "avoid_previous_week"
 CONF_DRAW_WEEKDAY = "draw_weekday"
 CONF_DRAW_TIME = "draw_time"
 CONF_NO_SHOPPING_DAYS = "no_shopping_days"
+CONF_DAYS_OFF_CALENDARS = "days_off_calendars"
+CONF_HOLIDAY_SHOPS_CLOSED = "holiday_shops_closed"
 CONF_LUNCH_TIME = "lunch_time"
 CONF_LUNCH_DURATION = "lunch_duration"
 CONF_SHOW_PANEL = "show_panel"
 
 DEFAULT_OPTIONS = {
-    CONF_MEAL_DAYS: ["mon", "tue", "wed", "thu", "fri"],
+    CONF_MEAL_SCHEDULE: SCHEDULE_WORKDAYS,
+    CONF_WORKDAYS: ["mon", "tue", "wed", "thu", "fri"],
     CONF_MEAL_MODE: MODE_SOUP_OR_MAIN,
     CONF_SOUP_SHARE: 50,
     CONF_AVOID_PREVIOUS_WEEK: True,
@@ -53,11 +63,18 @@ DEFAULT_OPTIONS = {
     CONF_DRAW_WEEKDAY: "sat",
     CONF_DRAW_TIME: "09:00:00",
     CONF_NO_SHOPPING_DAYS: ["sun"],
+    # A day with an all-day event in one of these calendars has no lunch.
+    CONF_DAYS_OFF_CALENDARS: [],
+    # Shops are closed on the days of calendars from the Holiday integration.
+    CONF_HOLIDAY_SHOPS_CLOSED: True,
     CONF_LUNCH_TIME: "13:00:00",
     # Minutes; a lunch in the calendar starts at the lunch time and lasts this long.
     CONF_LUNCH_DURATION: 30,
     CONF_SHOW_PANEL: True,
 }
+
+# Option of version 0.5 and older, replaced by the schedule and the work days.
+OLD_CONF_MEAL_DAYS = "meal_days"
 
 # Options of version 0.3 that moved to automations (blueprints) in 0.4.
 REMOVED_OPTIONS = (
@@ -68,6 +85,11 @@ REMOVED_OPTIONS = (
     "notify_services",
     "shopping_list",
 )
+
+# Integration whose calendars hold public holidays (shops closed).
+HOLIDAY_PLATFORM = "holiday"
+# How far ahead the days-off calendars are read.
+DAYS_OFF_AHEAD = 40
 
 ATTR_CONFIG_ENTRY_ID = "config_entry_id"
 ATTR_DATE = "date"

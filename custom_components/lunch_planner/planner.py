@@ -316,28 +316,67 @@ def plan_days(
     return plan
 
 
-def shopping_day(meal_day: date, no_shopping_weekdays: Iterable[int]) -> date:
-    """Day on which to buy for ``meal_day``: the latest earlier shopping day."""
-    closed = set(no_shopping_weekdays)
+# Buying more than this many days before a lunch is too early: then it is
+# bought on the morning of the lunch day instead.
+MAX_DAYS_AHEAD = 2
+
+
+def _closed(day: date, weekdays: set[int], dates: set[date]) -> bool:
+    return day.weekday() in weekdays or day in dates
+
+
+def shopping_day(
+    meal_day: date,
+    no_shopping_weekdays: Iterable[int],
+    closed_dates: Iterable[date] = (),
+) -> date:
+    """Day on which to buy for ``meal_day``.
+
+    Normally the latest open day before it. When that is more than
+    ``MAX_DAYS_AHEAD`` days before (e.g. after Easter), the lunch day itself,
+    in the morning, unless shops are closed on it too.
+    """
+    weekdays = set(no_shopping_weekdays)
+    dates = set(closed_dates)
     day = meal_day - timedelta(days=1)
-    for _ in range(7):
-        if day.weekday() not in closed:
-            return day
+    for _ in range(14):
+        if not _closed(day, weekdays, dates):
+            break
         day -= timedelta(days=1)
-    return meal_day - timedelta(days=1)  # every day closed: buy the day before
+    else:
+        return meal_day - timedelta(days=1)  # every day closed: buy the day before
+    if (meal_day - day).days > MAX_DAYS_AHEAD and not _closed(meal_day, weekdays, dates):
+        return meal_day
+    return day
+
+
+def list_day(
+    meal_day: date,
+    no_shopping_weekdays: Iterable[int],
+    closed_dates: Iterable[date] = (),
+) -> date:
+    """Day on which the shopping list for ``meal_day`` goes out.
+
+    The shopping day, or the evening before when shopping is in the morning
+    of the lunch day.
+    """
+    day = shopping_day(meal_day, no_shopping_weekdays, closed_dates)
+    return day if day < meal_day else meal_day - timedelta(days=1)
 
 
 def meals_to_buy_on(
     plan: Mapping[str, Mapping[str, Any]],
     day: date,
     no_shopping_weekdays: Iterable[int],
+    closed_dates: Iterable[date] = (),
 ) -> list[Mapping[str, Any]]:
     """Planned meals whose shopping falls on ``day``, in date order."""
-    closed = list(no_shopping_weekdays)
+    weekdays = list(no_shopping_weekdays)
+    dates = list(closed_dates)
     result = []
     for iso in sorted(plan):
         meal_day = date.fromisoformat(iso)
-        if meal_day > day and shopping_day(meal_day, closed) == day:
+        if meal_day >= day and shopping_day(meal_day, weekdays, dates) == day:
             result.append(plan[iso])
     return result
 

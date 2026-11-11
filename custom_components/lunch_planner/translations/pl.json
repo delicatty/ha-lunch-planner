@@ -13,23 +13,29 @@
         "title": "Ustawienia",
         "description": "Dania dodajesz w panelu planera w pasku bocznym. Powiadomienia i listę zakupów wysyłają automatyzacje: w repozytorium integracji są do tego gotowe blueprinty.",
         "data": {
-          "meal_days": "Dni z obiadem",
+          "meal_schedule": "Kiedy obiady",
+          "workdays": "Dni robocze",
           "meal_mode": "Co jest na obiad",
           "soup_share": "Udział dni z zupą",
           "avoid_previous_week": "Unikaj dań z poprzedniego tygodnia",
           "draw_weekday": "Losowanie: dzień",
           "draw_time": "Losowanie: godzina",
           "no_shopping_days": "Dni bez zakupów",
+          "days_off_calendars": "Kalendarze dni wolnych",
+          "holiday_shops_closed": "Sklepy nieczynne w święta",
           "lunch_time": "Godzina obiadu",
           "lunch_duration": "Czas trwania obiadu",
           "show_panel": "Pokazuj panel planera w pasku bocznym"
         },
         "data_description": {
-          "meal_days": "Dni, na które losowany jest obiad.",
+          "meal_schedule": "W dni robocze, w pozostałe dni tygodnia (weekendy) albo codziennie.",
+          "workdays": "Twoje dni robocze; weekendy to pozostałe dni. Przy „Codziennie” nie mają znaczenia.",
           "soup_share": "Tylko dla „Zupa albo drugie danie”: jaka część tygodnia to zupa.",
           "avoid_previous_week": "Wybieraj dania, których nie było tydzień wcześniej, jeśli baza ma ich dość.",
           "draw_weekday": "Losowanie planuje tydzień od najbliższego poniedziałku. Musi być przed zakupami na poniedziałek.",
-          "no_shopping_days": "Zakupy na następny dzień przechodzą na ostatni wcześniejszy dzień, np. obiad na poniedziałek kupujesz w sobotę, gdy w niedzielę sklepy są zamknięte.",
+          "no_shopping_days": "Obiad kupujesz dzień wcześniej albo w ostatni wcześniejszy dzień z otwartymi sklepami. Po przerwie 3 dni lub dłuższej (np. Wielkanoc) kupujesz go rano w dniu obiadu.",
+          "days_off_calendars": "W dzień z wydarzeniem całodniowym w którymś z tych kalendarzy nie ma obiadu, np. święta z integracji Holiday albo urlop we własnym kalendarzu.",
+          "holiday_shops_closed": "Brak zakupów w dni z kalendarzy integracji Holiday. Inne kalendarze (np. urlop) odwołują tylko obiady.",
           "lunch_time": "O której zaczyna się obiad w kalendarzu planu.",
           "lunch_duration": "Ile minut trwa każdy obiad w kalendarzu planu.",
           "show_panel": "Panel z planem i edytorem bazy dań. Bez niego dania zmieniasz akcjami add_meal i remove_meal."
@@ -37,7 +43,8 @@
       }
     },
     "error": {
-      "no_meal_days": "Wybierz co najmniej jeden dzień z obiadem.",
+      "no_workdays": "Wybierz co najmniej jeden dzień roboczy.",
+      "no_weekend_days": "Gdy każdy dzień jest roboczy, nie ma weekendu: odznacz któryś dzień albo wybierz „Codziennie”.",
       "no_shopping_day_left": "Zostaw co najmniej jeden dzień na zakupy."
     }
   },
@@ -47,23 +54,29 @@
         "title": "Ustawienia",
         "description": "Dania dodajesz w panelu planera w pasku bocznym. Powiadomienia i listę zakupów wysyłają automatyzacje: w repozytorium integracji są do tego gotowe blueprinty.",
         "data": {
-          "meal_days": "Dni z obiadem",
+          "meal_schedule": "Kiedy obiady",
+          "workdays": "Dni robocze",
           "meal_mode": "Co jest na obiad",
           "soup_share": "Udział dni z zupą",
           "avoid_previous_week": "Unikaj dań z poprzedniego tygodnia",
           "draw_weekday": "Losowanie: dzień",
           "draw_time": "Losowanie: godzina",
           "no_shopping_days": "Dni bez zakupów",
+          "days_off_calendars": "Kalendarze dni wolnych",
+          "holiday_shops_closed": "Sklepy nieczynne w święta",
           "lunch_time": "Godzina obiadu",
           "lunch_duration": "Czas trwania obiadu",
           "show_panel": "Pokazuj panel planera w pasku bocznym"
         },
         "data_description": {
-          "meal_days": "Dni, na które losowany jest obiad.",
+          "meal_schedule": "W dni robocze, w pozostałe dni tygodnia (weekendy) albo codziennie.",
+          "workdays": "Twoje dni robocze; weekendy to pozostałe dni. Przy „Codziennie” nie mają znaczenia.",
           "soup_share": "Tylko dla „Zupa albo drugie danie”: jaka część tygodnia to zupa.",
           "avoid_previous_week": "Wybieraj dania, których nie było tydzień wcześniej, jeśli baza ma ich dość.",
           "draw_weekday": "Losowanie planuje tydzień od najbliższego poniedziałku. Musi być przed zakupami na poniedziałek.",
-          "no_shopping_days": "Zakupy na następny dzień przechodzą na ostatni wcześniejszy dzień, np. obiad na poniedziałek kupujesz w sobotę, gdy w niedzielę sklepy są zamknięte.",
+          "no_shopping_days": "Obiad kupujesz dzień wcześniej albo w ostatni wcześniejszy dzień z otwartymi sklepami. Po przerwie 3 dni lub dłuższej (np. Wielkanoc) kupujesz go rano w dniu obiadu.",
+          "days_off_calendars": "W dzień z wydarzeniem całodniowym w którymś z tych kalendarzy nie ma obiadu, np. święta z integracji Holiday albo urlop we własnym kalendarzu.",
+          "holiday_shops_closed": "Brak zakupów w dni z kalendarzy integracji Holiday. Inne kalendarze (np. urlop) odwołują tylko obiady.",
           "lunch_time": "O której zaczyna się obiad w kalendarzu planu.",
           "lunch_duration": "Ile minut trwa każdy obiad w kalendarzu planu.",
           "show_panel": "Panel z planem i edytorem bazy dań. Bez niego dania zmieniasz akcjami add_meal i remove_meal."
@@ -71,11 +84,19 @@
       }
     },
     "error": {
-      "no_meal_days": "Wybierz co najmniej jeden dzień z obiadem.",
+      "no_workdays": "Wybierz co najmniej jeden dzień roboczy.",
+      "no_weekend_days": "Gdy każdy dzień jest roboczy, nie ma weekendu: odznacz któryś dzień albo wybierz „Codziennie”.",
       "no_shopping_day_left": "Zostaw co najmniej jeden dzień na zakupy."
     }
   },
   "selector": {
+    "meal_schedule": {
+      "options": {
+        "workdays": "Dni robocze",
+        "weekends": "Weekendy",
+        "every_day": "Codziennie"
+      }
+    },
     "meal_mode": {
       "options": {
         "soup_or_main": "Zupa albo drugie danie (jedno dziennie)",

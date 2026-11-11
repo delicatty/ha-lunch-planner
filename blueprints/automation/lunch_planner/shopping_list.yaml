@@ -4,7 +4,9 @@ blueprint:
     On a shopping day, sends what to buy for the next lunch(es) to a phone and
     adds it to to-do lists. The Lunch Planner integration decides which days
     are shopping days (e.g. Monday's lunch is bought on Saturday when shops are
-    closed on Sunday). Optionally waits until a person is home.
+    closed on Sunday). When a lunch is bought in the morning of its day (after
+    a long break, e.g. Easter), the list is sent the evening before.
+    Optionally waits until a person is home.
   domain: automation
   author: delicatty
   source_url: https://github.com/delicatty/ha-lunch-planner/blob/main/blueprints/automation/lunch_planner/shopping_list.yaml
@@ -24,7 +26,9 @@ blueprint:
               domain: sensor
         time:
           name: Time
-          description: When to send the list on a shopping day.
+          description: >-
+            When to send the list on a shopping day (or the evening before
+            shopping in the morning).
           default: "17:00:00"
           selector:
             time:
@@ -54,6 +58,12 @@ blueprint:
         to_buy_text:
           name: Text before the list
           default: "To buy:"
+          selector:
+            text:
+        morning_text:
+          name: Text before the list for tomorrow morning
+          description: Used when the shopping is in the morning of the lunch day.
+          default: "To buy tomorrow morning:"
           selector:
             text:
     presence:
@@ -98,15 +108,18 @@ variables:
   lists: !input shopping_lists
   title: !input title
   to_buy_text: !input to_buy_text
+  morning_text: !input morning_text
 
 triggers:
   - trigger: time
     at: !input time
 
 conditions:
-  - alias: Today is a shopping day
+  - alias: The shopping list goes out today
     condition: template
-    value_template: "{{ state_attr(sensor, 'shopping_date') == now().date().isoformat() }}"
+    value_template: >-
+      {{ (state_attr(sensor, 'list_date') or state_attr(sensor, 'shopping_date'))
+         == now().date().isoformat() }}
 
 actions:
   - alias: Wait until the person is home
@@ -124,6 +137,7 @@ actions:
   - variables:
       items: "{{ state_attr(sensor, 'shopping_items') or [] }}"
       summary: "{{ state_attr(sensor, 'summary') or '' }}"
+      heading: "{{ morning_text if state_attr(sensor, 'shopping_morning') else to_buy_text }}"
   - condition: template
     value_template: "{{ items | count > 0 }}"
   - alias: Notify the phone
@@ -134,7 +148,7 @@ actions:
     message: |-
       {{ summary }}
 
-      {{ to_buy_text }}
+      {{ heading }}
       {% for item in items %}• {{ item }}{{ '\n' if not loop.last }}{% endfor %}
     data:
       tag: lunch_planner_shopping

@@ -261,6 +261,30 @@ def test_shopping_day_skips_closed_days():
     assert planner.shopping_day(MONDAY, []) == MONDAY - timedelta(days=1)
 
 
+def test_long_break_moves_shopping_to_the_lunch_morning():
+    sunday = 6
+    # Easter 2027: Sunday 28.03 and Monday 29.03 closed. Tuesday's lunch would
+    # be bought on Saturday, 3 days ahead: it is bought on Tuesday morning.
+    easter_monday = date(2027, 3, 29)
+    tuesday = date(2027, 3, 30)
+    assert planner.shopping_day(tuesday, [sunday], [easter_monday]) == tuesday
+    assert planner.list_day(tuesday, [sunday], [easter_monday]) == easter_monday
+    # Two days ahead is fine: Monday's lunch is bought on Saturday.
+    assert planner.shopping_day(MONDAY, [sunday]) == MONDAY - timedelta(days=2)
+    assert planner.list_day(MONDAY, [sunday]) == MONDAY - timedelta(days=2)
+    # Christmas 2026: 24-26.12 holidays, 27.12 Sunday.
+    christmas = [date(2026, 12, 24), date(2026, 12, 25), date(2026, 12, 26)]
+    monday = date(2026, 12, 28)
+    assert planner.shopping_day(monday, [sunday], christmas) == monday
+    assert planner.list_day(monday, [sunday], christmas) == date(2026, 12, 27)
+    # The lunch day itself is closed too: the last open day it is.
+    assert planner.shopping_day(date(2026, 12, 26), [sunday], christmas) == date(2026, 12, 23)
+    # Same-day shopping is on that day's list.
+    plan = {monday.isoformat(): {"date": monday.isoformat(), "parts": []}}
+    assert planner.meals_to_buy_on(plan, monday, [sunday], christmas) == [plan[monday.isoformat()]]
+    assert planner.meals_to_buy_on(plan, date(2026, 12, 23), [sunday], christmas) == []
+
+
 def test_meals_to_buy_on_saturday_covers_monday():
     plan = {d.isoformat(): {"date": d.isoformat(), "parts": []} for d in WEEK}
     saturday = MONDAY - timedelta(days=2)

@@ -13,23 +13,29 @@
         "title": "Settings",
         "description": "Add meals in the Lunch planner panel in the sidebar. Notifications and the shopping list are sent by automations: the integration's repository has ready blueprints for them.",
         "data": {
-          "meal_days": "Lunch days",
+          "meal_schedule": "When to have lunch",
+          "workdays": "Work days",
           "meal_mode": "What each lunch is",
           "soup_share": "Share of soup days",
           "avoid_previous_week": "Avoid last week's meals",
           "draw_weekday": "Weekly draw: day",
           "draw_time": "Weekly draw: time",
           "no_shopping_days": "Days without shopping",
+          "days_off_calendars": "Days-off calendars",
+          "holiday_shops_closed": "Shops closed on public holidays",
           "lunch_time": "Lunch time",
           "lunch_duration": "Lunch length",
           "show_panel": "Show the Lunch planner panel"
         },
         "data_description": {
-          "meal_days": "Days that get a planned lunch.",
+          "meal_schedule": "On work days, on the other days of the week (weekends), or every day.",
+          "workdays": "Your work days; weekends are the other days. Not used with \"Every day\".",
           "soup_share": "Only for \"Soup or main course\": the part of the week that gets a soup.",
           "avoid_previous_week": "Prefer meals that were not served the week before, when the database has enough of them.",
           "draw_weekday": "The draw plans the week starting on the next Monday. It must come before the shopping for Monday.",
-          "no_shopping_days": "Shopping for the day after is moved to the last earlier day, e.g. Monday's lunch is bought on Saturday when shops are closed on Sunday.",
+          "no_shopping_days": "A lunch is bought the day before, or on the last open day before it. After a break of 3 days or more (e.g. Easter) it is bought in the morning of the lunch day instead.",
+          "days_off_calendars": "A day with an all-day event in one of these calendars has no lunch, e.g. public holidays from the Holiday integration or a holiday trip in your own calendar.",
+          "holiday_shops_closed": "No shopping on the days of calendars from the Holiday integration. Other calendars (e.g. a holiday trip) cancel lunches only.",
           "lunch_time": "When lunch starts in the plan calendar.",
           "lunch_duration": "How long each lunch lasts in the plan calendar, in minutes.",
           "show_panel": "A sidebar panel with the plan and the meal database editor. Without it, manage meals with the add_meal and remove_meal actions."
@@ -37,7 +43,8 @@
       }
     },
     "error": {
-      "no_meal_days": "Choose at least one lunch day.",
+      "no_workdays": "Choose at least one work day.",
+      "no_weekend_days": "With every day a work day there is no weekend: leave out a day or choose \"Every day\".",
       "no_shopping_day_left": "Leave at least one day for shopping."
     }
   },
@@ -47,23 +54,29 @@
         "title": "Settings",
         "description": "Add meals in the Lunch planner panel in the sidebar. Notifications and the shopping list are sent by automations: the integration's repository has ready blueprints for them.",
         "data": {
-          "meal_days": "Lunch days",
+          "meal_schedule": "When to have lunch",
+          "workdays": "Work days",
           "meal_mode": "What each lunch is",
           "soup_share": "Share of soup days",
           "avoid_previous_week": "Avoid last week's meals",
           "draw_weekday": "Weekly draw: day",
           "draw_time": "Weekly draw: time",
           "no_shopping_days": "Days without shopping",
+          "days_off_calendars": "Days-off calendars",
+          "holiday_shops_closed": "Shops closed on public holidays",
           "lunch_time": "Lunch time",
           "lunch_duration": "Lunch length",
           "show_panel": "Show the Lunch planner panel"
         },
         "data_description": {
-          "meal_days": "Days that get a planned lunch.",
+          "meal_schedule": "On work days, on the other days of the week (weekends), or every day.",
+          "workdays": "Your work days; weekends are the other days. Not used with \"Every day\".",
           "soup_share": "Only for \"Soup or main course\": the part of the week that gets a soup.",
           "avoid_previous_week": "Prefer meals that were not served the week before, when the database has enough of them.",
           "draw_weekday": "The draw plans the week starting on the next Monday. It must come before the shopping for Monday.",
-          "no_shopping_days": "Shopping for the day after is moved to the last earlier day, e.g. Monday's lunch is bought on Saturday when shops are closed on Sunday.",
+          "no_shopping_days": "A lunch is bought the day before, or on the last open day before it. After a break of 3 days or more (e.g. Easter) it is bought in the morning of the lunch day instead.",
+          "days_off_calendars": "A day with an all-day event in one of these calendars has no lunch, e.g. public holidays from the Holiday integration or a holiday trip in your own calendar.",
+          "holiday_shops_closed": "No shopping on the days of calendars from the Holiday integration. Other calendars (e.g. a holiday trip) cancel lunches only.",
           "lunch_time": "When lunch starts in the plan calendar.",
           "lunch_duration": "How long each lunch lasts in the plan calendar, in minutes.",
           "show_panel": "A sidebar panel with the plan and the meal database editor. Without it, manage meals with the add_meal and remove_meal actions."
@@ -71,11 +84,19 @@
       }
     },
     "error": {
-      "no_meal_days": "Choose at least one lunch day.",
+      "no_workdays": "Choose at least one work day.",
+      "no_weekend_days": "With every day a work day there is no weekend: leave out a day or choose \"Every day\".",
       "no_shopping_day_left": "Leave at least one day for shopping."
     }
   },
   "selector": {
+    "meal_schedule": {
+      "options": {
+        "workdays": "Work days",
+        "weekends": "Weekends",
+        "every_day": "Every day"
+      }
+    },
     "meal_mode": {
       "options": {
         "soup_or_main": "Soup or main course (one per day)",

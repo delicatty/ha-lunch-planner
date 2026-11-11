@@ -108,8 +108,13 @@ class ToBuySensor(LunchPlannerEntity, SensorEntity):
             f"{self.planner.day_label(date.fromisoformat(m['date']))}: {self.planner.describe(m)}"
             for m in meals
         ]
+        morning = any(m["date"] == day.isoformat() for m in meals)
         return {
             "shopping_date": day.isoformat(),
+            # Shopping in the morning of the lunch day (a long break before
+            # it): the list goes out the evening before, on list_date.
+            "shopping_morning": morning,
+            "list_date": (day - timedelta(days=1) if morning else day).isoformat(),
             "meal_dates": [m["date"] for m in meals],
             "meals": [self.planner.describe(m) for m in meals],
             # One line per lunch, e.g. "pon 16.11: Zupa grzybowa", for messages.

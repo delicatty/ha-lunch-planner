@@ -18,12 +18,16 @@ from .const import (
     ATTR_CONFIG_ENTRY_ID,
     ATTR_DATE,
     CATEGORIES,
+    CONF_MEAL_SCHEDULE,
+    CONF_WORKDAYS,
     DOMAIN,
+    OLD_CONF_MEAL_DAYS,
     PLATFORMS,
     SERVICE_ADD_MEAL,
     SERVICE_REDRAW,
     REMOVED_OPTIONS,
     SERVICE_REMOVE_MEAL,
+    SCHEDULE_WORKDAYS,
 )
 from .manager import LunchPlanner
 from .panel import async_update_panel
@@ -91,7 +95,7 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     async def redraw(call: ServiceCall) -> ServiceResponse:
         planner = _planner_for(hass, call)
         day: date | None = call.data.get(ATTR_DATE)
-        drawn = planner.async_redraw(day)
+        drawn = await planner.async_redraw(day)
         return {"dates": [d.isoformat() for d in drawn]}
 
     async def add_meal(call: ServiceCall) -> None:
@@ -132,12 +136,24 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
 
 
 async def async_migrate_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
-    """1.1 -> 1.2: notifications moved to automations, drop their options."""
+    """Bring the options of an older version up to date.
+
+    1.1 -> 1.2: notifications moved to automations, drop their options.
+    1.2 -> 1.3: the list of meal days becomes the list of work days, with
+    lunches on work days, so the same days keep their lunch.
+    """
     if entry.version > 1:
         return False
     if entry.minor_version < 2:
         options = {k: v for k, v in entry.options.items() if k not in REMOVED_OPTIONS}
         hass.config_entries.async_update_entry(entry, options=options, minor_version=2)
+    if entry.minor_version < 3:
+        options = dict(entry.options)
+        meal_days = options.pop(OLD_CONF_MEAL_DAYS, None)
+        if meal_days:
+            options[CONF_WORKDAYS] = meal_days
+            options[CONF_MEAL_SCHEDULE] = SCHEDULE_WORKDAYS
+        hass.config_entries.async_update_entry(entry, options=options, minor_version=3)
     return True
 
 

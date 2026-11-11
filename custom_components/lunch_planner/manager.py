@@ -11,7 +11,9 @@ import uuid
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import CALLBACK_TYPE, HomeAssistant, callback
 from homeassistant.exceptions import HomeAssistantError
+from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.event import async_track_time_change
+from homeassistant.helpers.start import async_at_started
 from homeassistant.helpers.storage import Store
 from homeassistant.util import dt as dt_util
 
@@ -19,20 +21,27 @@ from . import planner
 from .const import (
     CATEGORIES,
     CONF_AVOID_PREVIOUS_WEEK,
+    CONF_DAYS_OFF_CALENDARS,
     CONF_DRAW_TIME,
     CONF_DRAW_WEEKDAY,
-    CONF_MEAL_DAYS,
+    CONF_HOLIDAY_SHOPS_CLOSED,
     CONF_MEAL_MODE,
+    CONF_MEAL_SCHEDULE,
     CONF_NO_SHOPPING_DAYS,
     CONF_SOUP_SHARE,
+    CONF_WORKDAYS,
+    DAYS_OFF_AHEAD,
     DEFAULT_OPTIONS,
     DOMAIN,
     EVENT_PLAN_UPDATED,
     HISTORY_DAYS,
+    HOLIDAY_PLATFORM,
     REASON_FIRST,
     REASON_MISSING,
     REASON_REDRAW,
     REASON_WEEKLY,
+    SCHEDULE_EVERY_DAY,
+    SCHEDULE_WEEKENDS,
     STORAGE_VERSION,
     WEEKDAYS,
 )
@@ -86,6 +95,24 @@ def _migrate_meal(meal: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def _all_day_dates(events: list[dict[str, Any]]) -> set[date]:
+    """Dates covered by the all-day events among ``events`` (end is exclusive)."""
+    days: set[date] = set()
+    for event in events:
+        start, end = event.get("start"), event.get("end")
+        if isinstance(start, str) and len(start) == 10:
+            start = date.fromisoformat(start)
+        if isinstance(end, str) and len(end) == 10:
+            end = date.fromisoformat(end)
+        if type(start) is not date or type(end) is not date:
+            continue  # an event with a time of day is not a day off
+        day = start
+        while day < max(end, start + timedelta(days=1)):
+            days.add(day)
+            day += timedelta(days=1)
+    return days
+
+
 def _parse_time(value: str) -> tuple[int, int, int]:
     parts = [int(p) for p in str(value).split(":")] + [0, 0]
     return parts[0], parts[1], parts[2]
@@ -106,6 +133,8 @@ class LunchPlanner:
         self._unsubs: list[CALLBACK_TYPE] = []
         self._rng = random.Random()
         self._texts: dict[str, str] = {}
+        # Days with an all-day event, per days-off calendar.
+        self._calendar_days: dict[str, set[date]] = {}
 
     # -- options ---------------------------------------------------------
 
@@ -114,7 +143,41 @@ class LunchPlanner:
 
     @property
     def meal_weekdays(self) -> list[int]:
-        return _weekday_numbers(self.option(CONF_MEAL_DAYS))
+        workdays = _weekday_numbers(self.option(CONF_WORKDAYS))
+        schedule = self.option(CONF_MEAL_SCHEDULE)
+        if schedule == SCHEDULE_EVERY_DAY:
+            return list(range(7))
+        if schedule == SCHEDULE_WEEKENDS:
+            return [d for d in range(7) if d not in workdays]
+        return workdays
+
+    @property
+    def days_off(self) -> set[date]:
+        """Days with an all-day event in one of the days-off calendars."""
+        return set().union(*self._calendar_days.values())
+
+    @property
+    def shops_closed(self) -> set[date]:
+        """Public holidays (Holiday integration calendars), if shops close then."""
+        if not self.option(CONF_HOLIDAY_SHOPS_CLOSED):
+            return set()
+        registry = er.async_get(self.hass)
+        return set().union(
+            *(
+                days
+                for entity_id, days in self._calendar_days.items()
+                if (entry := registry.async_get(entity_id)) and entry.platform == HOLIDAY_PLATFORM
+            )
+        )
+
+    def is_meal_day(self, day: date) -> bool:
+        return day.weekday() in self.meal_weekdays and day not in self.days_off
+
+    def shopping_day(self, day: date) -> date:
+        return planner.shopping_day(day, self.no_shopping_weekdays, self.shops_closed)
+
+    def list_day(self, day: date) -> date:
+        return planner.list_day(day, self.no_shopping_weekdays, self.shops_closed)
 
     @property
     def no_shopping_weekdays(self) -> list[int]:
@@ -162,6 +225,44 @@ class LunchPlanner:
 
     async def async_remove_storage(self) -> None:
         await self._store.async_remove()
+
+    # -- days off --------------------------------------------------------
+
+    async def async_refresh_days_off(self, until: date | None = None) -> None:
+        """Read the all-day events of the days-off calendars.
+
+        They are read from yesterday for ``DAYS_OFF_AHEAD`` days, or up to the
+        last planned day or ``until`` when that is later (a day drawn far
+        ahead). A calendar that cannot be read (e.g. not loaded yet) keeps the
+        days read last time.
+        """
+        calendars = list(self.option(CONF_DAYS_OFF_CALENDARS) or [])
+        self._calendar_days = {c: d for c, d in self._calendar_days.items() if c in calendars}
+        if not calendars:
+            return
+        today = self.today()
+        start = dt_util.start_of_local_day(today - timedelta(days=1))
+        last = max(
+            [date.fromisoformat(iso) for iso in self.plan] + ([until] if until else []),
+            default=today,
+        )
+        days = max(DAYS_OFF_AHEAD, (last - today).days + 2)
+        end = start + timedelta(days=days)
+        for entity_id in calendars:
+            try:
+                response = await self.hass.services.async_call(
+                    "calendar",
+                    "get_events",
+                    {"start_date_time": start, "end_date_time": end},
+                    target={"entity_id": entity_id},
+                    blocking=True,
+                    return_response=True,
+                )
+            except HomeAssistantError as err:
+                _LOGGER.warning("Cannot read days off from %s: %s", entity_id, err)
+                continue
+            events = (response or {}).get(entity_id, {}).get("events", [])
+            self._calendar_days[entity_id] = _all_day_dates(events)
 
     # -- listeners -------------------------------------------------------
 
@@ -251,13 +352,14 @@ class LunchPlanner:
         return self.plan.get(day.isoformat())
 
     def is_locked(self, day: date) -> bool:
-        """A day is fixed from the start of the day its shopping is done on.
+        """A day is fixed from the start of the day its shopping list goes out.
 
-        From then on the shopping list for it may already be out, so drawing
-        again must not change it.
+        That is its shopping day, or the day before when it is bought in the
+        morning of the lunch day. From then on the list may already be out, so
+        drawing again must not change it.
         """
         today = self.today()
-        return day <= today or planner.shopping_day(day, self.no_shopping_weekdays) <= today
+        return day <= today or self.list_day(day) <= today
 
     @callback
     def _draw(self, days: list[date], reason: str) -> list[date]:
@@ -266,7 +368,9 @@ class LunchPlanner:
         days = [
             d
             for d in days
-            if d > today and (not self.is_locked(d) or d.isoformat() not in self.plan)
+            if d > today
+            and self.is_meal_day(d)
+            and (not self.is_locked(d) or d.isoformat() not in self.plan)
         ]
         if not days:
             return []
@@ -322,21 +426,29 @@ class LunchPlanner:
             if day > today and not self.is_locked(day)
         ]
 
-    @callback
-    def async_redraw(self, day: date | None = None) -> list[date]:
+    def _rest_of_week(self) -> list[date]:
+        days = planner.rest_of_week_days(self.today(), self.meal_weekdays)
+        return [d for d in days if self.is_meal_day(d)]
+
+    def _next_week(self) -> list[date]:
+        days = planner.next_week_days(self.today(), self.meal_weekdays)
+        return [d for d in days if self.is_meal_day(d)]
+
+    async def async_redraw(self, day: date | None = None) -> list[date]:
         """Draw one day again, or all upcoming days that can still change."""
+        await self.async_refresh_days_off(until=day)
+        self._remove_days_off()
         if day is not None:
-            if day.weekday() not in self.meal_weekdays:
+            if not self.is_meal_day(day):
                 raise HomeAssistantError(f"{day} is not a meal day")
             if self.is_locked(day):
-                raise HomeAssistantError(f"{day} is already fixed: its shopping day has come")
+                raise HomeAssistantError(f"{day} is already fixed: its shopping list is out")
             return self._draw([day], REASON_REDRAW)
-        today = self.today()
         days = self.upcoming_days()
         if not days:
-            days = planner.rest_of_week_days(today, self.meal_weekdays)
+            days = self._rest_of_week()
         if not [d for d in days if not self.is_locked(d)]:
-            days = planner.next_week_days(today, self.meal_weekdays)
+            days = self._next_week()
         return self._draw(days, REASON_REDRAW)
 
     @callback
@@ -345,18 +457,36 @@ class LunchPlanner:
         today = self.today()
         if any(date.fromisoformat(iso) > today for iso in self.plan):
             return
-        days = planner.rest_of_week_days(today, self.meal_weekdays)
+        days = self._rest_of_week()
         if not [d for d in days if not self.is_locked(d)]:
-            days = planner.next_week_days(today, self.meal_weekdays)
+            days = self._next_week()
         self._draw(days, REASON_FIRST)
 
     @callback
     def async_weekly_draw(self) -> list[date]:
-        return self._draw(planner.next_week_days(self.today(), self.meal_weekdays), REASON_WEEKLY)
+        return self._draw(self._next_week(), REASON_WEEKLY)
+
+    @callback
+    def _remove_days_off(self) -> None:
+        """Drop planned lunches on days that became days off, unless fixed."""
+        today = self.today()
+        days_off = self.days_off
+        removed = [
+            iso
+            for iso in self.plan
+            if (day := date.fromisoformat(iso)) > today
+            and day in days_off
+            and not self.is_locked(day)
+        ]
+        for iso in removed:
+            del self.plan[iso]
+        if removed:
+            _LOGGER.debug("Removed lunches on days off: %s", removed)
+            self._changed()
 
     @callback
     def _draw_missing(self) -> None:
-        """Draw meals whose shopping day has come but which are not planned yet.
+        """Draw meals whose shopping list is due but which are not planned yet.
 
         E.g. when the weekly draw is set later than the first shopping day of
         the week. Runs at start-up and at midnight.
@@ -366,9 +496,9 @@ class LunchPlanner:
         for offset in range(1, 9):
             day = today + timedelta(days=offset)
             if (
-                day.weekday() in self.meal_weekdays
+                self.is_meal_day(day)
                 and day.isoformat() not in self.plan
-                and planner.shopping_day(day, self.no_shopping_weekdays) <= today
+                and self.list_day(day) <= today
             ):
                 missing.append(day)
         if missing:
@@ -397,7 +527,9 @@ class LunchPlanner:
         today = self.today()
         for offset in range(14):
             day = today + timedelta(days=offset)
-            meals = planner.meals_to_buy_on(self.plan, day, self.no_shopping_weekdays)
+            meals = planner.meals_to_buy_on(
+                self.plan, day, self.no_shopping_weekdays, self.shops_closed
+            )
             if meals:
                 return day, meals
         return None
@@ -416,6 +548,12 @@ class LunchPlanner:
         self._unsubs.append(
             async_track_time_change(self.hass, self._on_midnight, hour=0, minute=0, second=5)
         )
+        # Calendars of other integrations (days off) may load after this one.
+        self._unsubs.append(async_at_started(self.hass, self._async_on_started))
+
+    async def _async_on_started(self, _hass: HomeAssistant) -> None:
+        await self.async_refresh_days_off()
+        self._remove_days_off()
         self.async_ensure_plan()
         self._draw_missing()
 
@@ -428,10 +566,20 @@ class LunchPlanner:
     @callback
     def _on_draw_time(self, now: datetime) -> None:
         if WEEKDAYS[now.weekday()] == self.option(CONF_DRAW_WEEKDAY):
-            self.async_weekly_draw()
+            self.entry.async_create_task(self.hass, self._async_weekly_draw_fresh())
+
+    async def _async_weekly_draw_fresh(self) -> None:
+        await self.async_refresh_days_off()
+        self._remove_days_off()
+        self.async_weekly_draw()
 
     @callback
     def _on_midnight(self, _now: datetime) -> None:
+        self.entry.async_create_task(self.hass, self._async_midnight())
+
+    async def _async_midnight(self) -> None:
+        await self.async_refresh_days_off()
+        self._remove_days_off()
         self._draw_missing()
         for update in list(self._listeners):
             update()

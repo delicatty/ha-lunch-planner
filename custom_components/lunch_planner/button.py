@@ -22,4 +22,4 @@ class RedrawButton(LunchPlannerEntity, ButtonEntity):
     """Draw again every upcoming lunch whose shopping day has not come yet."""
 
     async def async_press(self) -> None:
-        self.planner.async_redraw()
+        await self.planner.async_redraw()

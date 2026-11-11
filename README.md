@@ -2,8 +2,8 @@
 
 *[Polski opis niżej](#polski)*
 
-Lunch Planner draws your weekday lunches once a week from a simple meal
-database and works out what to buy, and on which day, for each lunch.
+Lunch Planner draws your lunches (on work days, weekends or every day) once a
+week from a simple meal database and works out what to buy, and on which day, for each lunch.
 
 It is made for people who don't cook from recipes: a lunch is either a
 **soup** or a **main course**, and a main course is either one complete dish
@@ -31,10 +31,19 @@ adding to a shopping list are done by automations; two ready
   last week's meals are avoided.
 - What a lunch is: soup **or** main course (you choose the share of soup days),
   soup **and** main course, soup only, or main course only.
-- Each lunch is bought the day before. Days without shopping (e.g. Sunday) move
-  it earlier, so Monday's lunch is bought on Saturday.
-- From the start of its shopping day a lunch is fixed: drawing again never
-  changes a lunch whose shopping list may already be out.
+- Lunches on your work days (Monday–Friday by default), on the other days
+  (weekends), or every day.
+- Days off: a day with an all-day event in a chosen calendar has no lunch, e.g.
+  public holidays from the built-in **Holiday** integration, or a holiday trip
+  in your own calendar. A day off added after the draw drops its lunch at
+  midnight, unless its shopping list is already out.
+- Each lunch is bought the day before. Days without shopping (e.g. Sunday, and
+  public holidays from the Holiday integration) move it earlier, so Monday's
+  lunch is bought on Saturday. When that would be 3 days or more before the
+  lunch (e.g. after Easter), it is bought in the morning of the lunch day
+  instead, and the shopping list goes out the evening before.
+- From the start of the day its shopping list goes out a lunch is fixed:
+  drawing again never changes a lunch whose shopping list may already be out.
 
 ## Installation
 
@@ -50,11 +59,14 @@ adding to a shopping list are done by automations; two ready
 
 | Setting | Default |
 |---|---|
-| Lunch days | Monday–Friday |
+| When to have lunch | On work days |
+| Work days | Monday–Friday (weekends are the other days) |
 | What each lunch is | Soup or main course, 50% soup days |
 | Avoid last week's meals | on |
 | Weekly draw | Saturday 09:00 (plans the week from the next Monday) |
 | Days without shopping | Sunday |
+| Days-off calendars | none (e.g. the Holiday integration's calendar for your country) |
+| Shops closed on public holidays | on (only the Holiday integration's calendars; a holiday trip cancels lunches only) |
 | Lunch time, lunch length | 13:00, 30 minutes (each lunch is an event in the plan calendar) |
 | Sidebar panel | on (without it, manage meals with the actions below) |
 
@@ -65,10 +77,11 @@ Saturday) is drawn on its own at midnight before its shopping day.
 
 | Blueprint | What it does | Import |
 |---|---|---|
-| Shopping list | On a shopping day, at a set time (or once you are home), sends what to buy to a phone and adds it to to-do lists | [![Import](https://my.home-assistant.io/badges/blueprint_import.svg)](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https%3A%2F%2Fgithub.com%2Fdelicatty%2Fha-lunch-planner%2Fblob%2Fmain%2Fblueprints%2Fautomation%2Flunch_planner%2Fshopping_list.yaml) |
+| Shopping list | On a shopping day (or the evening before shopping in the morning), at a set time or once you are home, sends what to buy to a phone and adds it to to-do lists | [![Import](https://my.home-assistant.io/badges/blueprint_import.svg)](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https%3A%2F%2Fgithub.com%2Fdelicatty%2Fha-lunch-planner%2Fblob%2Fmain%2Fblueprints%2Fautomation%2Flunch_planner%2Fshopping_list.yaml) |
 | Weekly plan | Sends the plan after the weekly draw, with a **Draw again** button | [![Import](https://my.home-assistant.io/badges/blueprint_import.svg)](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https%3A%2F%2Fgithub.com%2Fdelicatty%2Fha-lunch-planner%2Fblob%2Fmain%2Fblueprints%2Fautomation%2Flunch_planner%2Fweekly_plan.yaml) |
 
-Their texts (title, "To buy:", button) are inputs, so write them in your language.
+Their texts (title, "To buy:", "To buy tomorrow morning:", button) are inputs,
+so write them in your language.
 
 ## Entities
 
@@ -81,8 +94,8 @@ All entities belong to one device per planner, named after the planner
 | Lunch plan (calendar) | The drawn plan, one event per lunch, at the lunch time |
 | Today's lunch, Tomorrow's lunch (sensors) | The lunch; parts and things to buy in attributes |
 | Next shopping (sensor) | Date of the next shopping day (today or later) |
-| To buy (sensor) | What to buy on that day, as text (cut at 255 characters); attributes `shopping_date`, `shopping_items` (the whole list), `meals`, `summary` (one line per lunch) |
-| Draw upcoming lunches again (button) | Draws again all upcoming lunches whose shopping day has not come |
+| To buy (sensor) | What to buy on that day, as text (cut at 255 characters); attributes `shopping_date`, `shopping_morning` (bought in the morning of the lunch day), `list_date` (when the list goes out), `shopping_items` (the whole list), `meals`, `summary` (one line per lunch) |
+| Draw upcoming lunches again (button) | Draws again all upcoming lunches whose shopping list is not out yet |
 
 Entity IDs are made by Home Assistant, not by the integration, from the
 planner's name and the entity's name in the language of your Home Assistant
@@ -105,6 +118,9 @@ them by their unique IDs.
 
 ## Upgrading
 
+- From 0.5: the list of lunch days becomes the list of work days, with lunches
+  on work days, so nothing changes. Import the shopping list blueprint again
+  (with overwrite) for the morning shopping list.
 - From 0.3: notifications and adding to a shopping list moved to the
   blueprints; their settings and the "Send shopping list now" button are
   removed. Import the blueprints to keep getting them.
@@ -129,7 +145,8 @@ integration the `notification` selector from there.
 
 ## Polski
 
-Planer obiadów raz w tygodniu losuje obiady na dni robocze z prostej bazy dań
+Planer obiadów raz w tygodniu losuje obiady (w dni robocze, w weekendy albo
+codziennie) z prostej bazy dań
 i wylicza, co i którego dnia kupić na każdy obiad.
 
 Obiad to **zupa** albo **drugie danie**. Drugie danie jest jednoskładnikowe
@@ -149,9 +166,17 @@ skrobiowego** (ziemniaki) i **surówki lub warzyw**.
 - Losowanie raz w tygodniu (domyślnie sobota 9:00) planuje tydzień od
   najbliższego poniedziałku, bez powtórek w tygodniu i dzień po dniu, a jeśli
   się da, także bez dań z poprzedniego tygodnia.
+- Dni robocze ustawiasz sama (domyślnie pn–pt); weekendy to pozostałe dni.
+- Dni wolne: w dzień z wydarzeniem całodniowym w wybranym kalendarzu nie ma
+  obiadu, np. święta z wbudowanej integracji **Holiday** albo urlop we własnym
+  kalendarzu. Dzień wolny dodany po losowaniu usuwa obiad o północy, chyba że
+  lista zakupów na niego już wyszła.
 - Zakupy na obiad robi się dzień wcześniej. W dni bez zakupów (domyślnie
-  niedziela) przechodzą na wcześniejszy dzień: obiad na poniedziałek kupujesz
-  w sobotę. Od początku dnia zakupów obiad jest ustalony.
+  niedziela, a przy opcji „Sklepy nieczynne w święta” także święta z integracji
+  Holiday) przechodzą na wcześniejszy dzień: obiad na poniedziałek kupujesz
+  w sobotę. Gdy wypadłoby to 3 dni lub więcej przed obiadem (np. po
+  Wielkanocy), kupujesz go rano w dniu obiadu, a lista przychodzi wieczorem
+  dzień wcześniej. Od początku dnia, w którym wychodzi lista, obiad jest ustalony.
 - Powiadomienia i dopisywanie do listy zakupów robią automatyzacje: gotowe
   blueprinty „Shopping list” i „Weekly plan” zaimportujesz przyciskami
   w tabeli [Blueprints](#blueprints). Ich teksty wpisujesz po polsku.
