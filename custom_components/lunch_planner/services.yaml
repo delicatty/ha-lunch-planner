@@ -1,0 +1,16 @@
+redraw:
+  fields:
+    config_entry_id:
+      selector:
+        config_entry:
+          integration: lunch_planner
+    date:
+      selector:
+        date:
+
+send_shopping_list:
+  fields:
+    config_entry_id:
+      selector:
+        config_entry:
+          integration: lunch_planner

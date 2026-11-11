@@ -1,0 +1,184 @@
+"""Config and options flow for Lunch Planner."""
+
+from __future__ import annotations
+
+from typing import Any
+
+import voluptuous as vol
+
+from homeassistant.config_entries import ConfigEntry, ConfigFlow, ConfigFlowResult, OptionsFlow
+from homeassistant.const import CONF_NAME
+from homeassistant.core import HomeAssistant, callback
+from homeassistant.helpers import selector
+
+from .const import (
+    CONF_ARRIVAL_DELAY,
+    CONF_AVOID_PREVIOUS_WEEK,
+    CONF_DRAW_TIME,
+    CONF_DRAW_WEEKDAY,
+    CONF_MEAL_DAYS,
+    CONF_MEAL_MODE,
+    CONF_NO_SHOPPING_DAYS,
+    CONF_NOTIFY,
+    CONF_PERSON,
+    CONF_SHOPPING_LIST,
+    CONF_SHOPPING_MODE,
+    CONF_SHOPPING_TIME,
+    CONF_SOUP_SHARE,
+    DEFAULT_OPTIONS,
+    DOMAIN,
+    MEAL_MODES,
+    SHOPPING_MODES,
+    WEEKDAYS,
+    messages,
+)
+
+# Notify actions that are not a single device.
+_SKIP_NOTIFY = {"notify", "send_message"}
+
+
+def _notify_targets(hass: HomeAssistant) -> list[str]:
+    services = hass.services.async_services().get("notify", {})
+    return sorted(f"notify.{name}" for name in services if name not in _SKIP_NOTIFY)
+
+
+def _weekday_selector(multiple: bool) -> selector.SelectSelector:
+    return selector.SelectSelector(
+        selector.SelectSelectorConfig(
+            options=list(WEEKDAYS),
+            multiple=multiple,
+            translation_key="weekday",
+            mode=selector.SelectSelectorMode.LIST if multiple else selector.SelectSelectorMode.DROPDOWN,
+        )
+    )
+
+
+def _options_schema(hass: HomeAssistant, current: dict[str, Any]) -> vol.Schema:
+    def default(key: str) -> dict[str, Any]:
+        value = current.get(key, DEFAULT_OPTIONS.get(key))
+        return {} if value is None else {"default": value}
+
+    def suggested(key: str) -> dict[str, Any]:
+        value = current.get(key)
+        return {"description": {"suggested_value": value}} if value else {}
+
+    return vol.Schema(
+        {
+            vol.Required(CONF_MEAL_DAYS, **default(CONF_MEAL_DAYS)): _weekday_selector(True),
+            vol.Required(CONF_MEAL_MODE, **default(CONF_MEAL_MODE)): selector.SelectSelector(
+                selector.SelectSelectorConfig(
+                    options=list(MEAL_MODES),
+                    translation_key="meal_mode",
+                    mode=selector.SelectSelectorMode.LIST,
+                )
+            ),
+            vol.Required(CONF_SOUP_SHARE, **default(CONF_SOUP_SHARE)): selector.NumberSelector(
+                selector.NumberSelectorConfig(
+                    min=0, max=100, step=10, unit_of_measurement="%",
+                    mode=selector.NumberSelectorMode.SLIDER,
+                )
+            ),
+            vol.Required(
+                CONF_AVOID_PREVIOUS_WEEK, **default(CONF_AVOID_PREVIOUS_WEEK)
+            ): selector.BooleanSelector(),
+            vol.Required(CONF_DRAW_WEEKDAY, **default(CONF_DRAW_WEEKDAY)): _weekday_selector(False),
+            vol.Required(CONF_DRAW_TIME, **default(CONF_DRAW_TIME)): selector.TimeSelector(),
+            vol.Required(CONF_SHOPPING_MODE, **default(CONF_SHOPPING_MODE)): selector.SelectSelector(
+                selector.SelectSelectorConfig(
+                    options=list(SHOPPING_MODES),
+                    translation_key="shopping_mode",
+                    mode=selector.SelectSelectorMode.LIST,
+                )
+            ),
+            vol.Required(CONF_SHOPPING_TIME, **default(CONF_SHOPPING_TIME)): selector.TimeSelector(),
+            vol.Optional(CONF_PERSON, **suggested(CONF_PERSON)): selector.EntitySelector(
+                selector.EntitySelectorConfig(domain="person")
+            ),
+            vol.Required(CONF_ARRIVAL_DELAY, **default(CONF_ARRIVAL_DELAY)): selector.NumberSelector(
+                selector.NumberSelectorConfig(
+                    min=0, max=120, step=5, unit_of_measurement="min",
+                    mode=selector.NumberSelectorMode.BOX,
+                )
+            ),
+            vol.Required(
+                CONF_NO_SHOPPING_DAYS, **default(CONF_NO_SHOPPING_DAYS)
+            ): _weekday_selector(True),
+            vol.Optional(CONF_NOTIFY, **default(CONF_NOTIFY)): selector.SelectSelector(
+                selector.SelectSelectorConfig(
+                    options=_notify_targets(hass),
+                    multiple=True,
+                    custom_value=True,
+                    mode=selector.SelectSelectorMode.DROPDOWN,
+                )
+            ),
+            vol.Optional(CONF_SHOPPING_LIST, **suggested(CONF_SHOPPING_LIST)): selector.EntitySelector(
+                selector.EntitySelectorConfig(domain="todo")
+            ),
+        }
+    )
+
+
+def _clean(user_input: dict[str, Any]) -> dict[str, Any]:
+    data = dict(user_input)
+    data[CONF_SOUP_SHARE] = int(data[CONF_SOUP_SHARE])
+    data[CONF_ARRIVAL_DELAY] = int(data[CONF_ARRIVAL_DELAY])
+    return data
+
+
+class LunchPlannerConfigFlow(ConfigFlow, domain=DOMAIN):
+    """Create a planner: a name first, then the same settings as in Configure."""
+
+    VERSION = 1
+
+    def __init__(self) -> None:
+        self._name: str | None = None
+
+    async def async_step_user(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
+        if user_input is not None:
+            self._name = user_input[CONF_NAME]
+            return await self.async_step_settings()
+        default_name = messages(self.hass.config.language)["default_name"]
+        return self.async_show_form(
+            step_id="user",
+            data_schema=vol.Schema({vol.Required(CONF_NAME, default=default_name): str}),
+        )
+
+    async def async_step_settings(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        errors = _validate(user_input) if user_input is not None else {}
+        if user_input is not None and not errors:
+            return self.async_create_entry(title=self._name, data={}, options=_clean(user_input))
+        return self.async_show_form(
+            step_id="settings",
+            data_schema=_options_schema(self.hass, user_input or {}),
+            errors=errors,
+        )
+
+    @staticmethod
+    @callback
+    def async_get_options_flow(config_entry: ConfigEntry) -> OptionsFlow:
+        return LunchPlannerOptionsFlow()
+
+
+def _validate(user_input: dict[str, Any]) -> dict[str, str]:
+    errors: dict[str, str] = {}
+    if not user_input.get(CONF_MEAL_DAYS):
+        errors[CONF_MEAL_DAYS] = "no_meal_days"
+    if len(user_input.get(CONF_NO_SHOPPING_DAYS, [])) >= 7:
+        errors[CONF_NO_SHOPPING_DAYS] = "no_shopping_day_left"
+    return errors
+
+
+class LunchPlannerOptionsFlow(OptionsFlow):
+    """Change the settings of a planner."""
+
+    async def async_step_init(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
+        errors = _validate(user_input) if user_input is not None else {}
+        if user_input is not None and not errors:
+            return self.async_create_entry(data=_clean(user_input))
+        return self.async_show_form(
+            step_id="init",
+            data_schema=_options_schema(self.hass, user_input or dict(self.config_entry.options)),
+            errors=errors,
+        )

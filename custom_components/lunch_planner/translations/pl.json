@@ -1,0 +1,192 @@
+{
+  "title": "Planer obiadów",
+  "config": {
+    "step": {
+      "user": {
+        "title": "Planer obiadów",
+        "description": "Nazwa planera, np. domu, dla którego planuje obiady.",
+        "data": {
+          "name": "Nazwa"
+        }
+      },
+      "settings": {
+        "title": "Ustawienia",
+        "description": "Baza dań to pięć list zadań, które tworzy ta integracja. W opisie pozycji wpisz, co kupić: każdą rzecz w osobnej linii albo po przecinku. Linia `sezon: 5-7` ogranicza pozycję do maja–lipca. Odhaczona pozycja nie jest losowana.",
+        "data": {
+          "meal_days": "Dni z obiadem",
+          "meal_mode": "Co jest na obiad",
+          "soup_share": "Udział dni z zupą",
+          "avoid_previous_week": "Unikaj dań z poprzedniego tygodnia",
+          "draw_weekday": "Losowanie: dzień",
+          "draw_time": "Losowanie: godzina",
+          "shopping_mode": "Kiedy wysyłać listę zakupów",
+          "shopping_time": "Godzina listy zakupów",
+          "person": "Osoba",
+          "arrival_delay": "Opóźnienie po powrocie",
+          "no_shopping_days": "Dni bez zakupów",
+          "notify_services": "Wysyłaj powiadomienia do",
+          "shopping_list": "Dodawaj do listy zakupów"
+        },
+        "data_description": {
+          "meal_days": "Dni, na które losowany jest obiad.",
+          "soup_share": "Tylko dla „Zupa albo drugie danie”: jaka część tygodnia to zupa.",
+          "avoid_previous_week": "Wybieraj dania, których nie było tydzień wcześniej, jeśli baza ma ich dość.",
+          "draw_weekday": "Losowanie planuje tydzień od najbliższego poniedziałku. Musi być przed zakupami na poniedziałek.",
+          "shopping_time": "Przy „Gdy wrócę do domu” to najwcześniejsza godzina.",
+          "person": "Dla „Gdy wrócę do domu”: lista czeka, aż ta osoba będzie w domu.",
+          "arrival_delay": "Ile minut po powrocie wysłać listę.",
+          "no_shopping_days": "Zakupy na następny dzień przechodzą na ostatni wcześniejszy dzień, np. obiad na poniedziałek kupujesz w sobotę, gdy w niedzielę sklepy są zamknięte.",
+          "notify_services": "Akcje powiadomień, np. notify.mobile_app_telefon. Trafia tu plan tygodnia i listy zakupów.",
+          "shopping_list": "Lista zadań, na którą trafiają rzeczy do kupienia."
+        }
+      }
+    },
+    "error": {
+      "no_meal_days": "Wybierz co najmniej jeden dzień z obiadem.",
+      "no_shopping_day_left": "Zostaw co najmniej jeden dzień na zakupy."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Ustawienia",
+        "description": "Baza dań to pięć list zadań, które tworzy ta integracja. W opisie pozycji wpisz, co kupić: każdą rzecz w osobnej linii albo po przecinku. Linia `sezon: 5-7` ogranicza pozycję do maja–lipca. Odhaczona pozycja nie jest losowana.",
+        "data": {
+          "meal_days": "Dni z obiadem",
+          "meal_mode": "Co jest na obiad",
+          "soup_share": "Udział dni z zupą",
+          "avoid_previous_week": "Unikaj dań z poprzedniego tygodnia",
+          "draw_weekday": "Losowanie: dzień",
+          "draw_time": "Losowanie: godzina",
+          "shopping_mode": "Kiedy wysyłać listę zakupów",
+          "shopping_time": "Godzina listy zakupów",
+          "person": "Osoba",
+          "arrival_delay": "Opóźnienie po powrocie",
+          "no_shopping_days": "Dni bez zakupów",
+          "notify_services": "Wysyłaj powiadomienia do",
+          "shopping_list": "Dodawaj do listy zakupów"
+        },
+        "data_description": {
+          "meal_days": "Dni, na które losowany jest obiad.",
+          "soup_share": "Tylko dla „Zupa albo drugie danie”: jaka część tygodnia to zupa.",
+          "avoid_previous_week": "Wybieraj dania, których nie było tydzień wcześniej, jeśli baza ma ich dość.",
+          "draw_weekday": "Losowanie planuje tydzień od najbliższego poniedziałku. Musi być przed zakupami na poniedziałek.",
+          "shopping_time": "Przy „Gdy wrócę do domu” to najwcześniejsza godzina.",
+          "person": "Dla „Gdy wrócę do domu”: lista czeka, aż ta osoba będzie w domu.",
+          "arrival_delay": "Ile minut po powrocie wysłać listę.",
+          "no_shopping_days": "Zakupy na następny dzień przechodzą na ostatni wcześniejszy dzień, np. obiad na poniedziałek kupujesz w sobotę, gdy w niedzielę sklepy są zamknięte.",
+          "notify_services": "Akcje powiadomień, np. notify.mobile_app_telefon. Trafia tu plan tygodnia i listy zakupów.",
+          "shopping_list": "Lista zadań, na którą trafiają rzeczy do kupienia."
+        }
+      }
+    },
+    "error": {
+      "no_meal_days": "Wybierz co najmniej jeden dzień z obiadem.",
+      "no_shopping_day_left": "Zostaw co najmniej jeden dzień na zakupy."
+    }
+  },
+  "selector": {
+    "meal_mode": {
+      "options": {
+        "soup_or_main": "Zupa albo drugie danie (jedno dziennie)",
+        "soup_and_main": "Zupa i drugie danie",
+        "soup_only": "Tylko zupa",
+        "main_only": "Tylko drugie danie"
+      }
+    },
+    "shopping_mode": {
+      "options": {
+        "time": "O stałej godzinie",
+        "presence": "Gdy wrócę do domu (od ustawionej godziny do 22:00)"
+      }
+    },
+    "weekday": {
+      "options": {
+        "mon": "poniedziałek",
+        "tue": "wtorek",
+        "wed": "środa",
+        "thu": "czwartek",
+        "fri": "piątek",
+        "sat": "sobota",
+        "sun": "niedziela"
+      }
+    }
+  },
+  "entity": {
+    "todo": {
+      "soup": {
+        "name": "Zupy"
+      },
+      "dish": {
+        "name": "Drugie dania jednoskładnikowe"
+      },
+      "protein": {
+        "name": "Drugie danie: składnik główny"
+      },
+      "starch": {
+        "name": "Drugie danie: dodatek skrobiowy"
+      },
+      "salad": {
+        "name": "Drugie danie: surówki i warzywa"
+      }
+    },
+    "calendar": {
+      "plan": {
+        "name": "Plan obiadów"
+      }
+    },
+    "sensor": {
+      "today": {
+        "name": "Obiad dziś"
+      },
+      "tomorrow": {
+        "name": "Obiad jutro"
+      },
+      "next_shopping": {
+        "name": "Następne zakupy"
+      }
+    },
+    "button": {
+      "redraw": {
+        "name": "Losuj ponownie nadchodzące obiady"
+      },
+      "send_shopping": {
+        "name": "Wyślij listę zakupów teraz"
+      }
+    }
+  },
+  "services": {
+    "redraw": {
+      "name": "Losuj obiady ponownie",
+      "description": "Losuje ponownie jeden dzień albo wszystkie nadchodzące obiady, na które jeszcze nie zrobiono zakupów.",
+      "fields": {
+        "config_entry_id": {
+          "name": "Planer",
+          "description": "Potrzebne tylko przy więcej niż jednym planerze."
+        },
+        "date": {
+          "name": "Data",
+          "description": "Losuj tylko ten dzień. Puste = wszystkie nadchodzące obiady."
+        }
+      }
+    },
+    "send_shopping_list": {
+      "name": "Wyślij listę zakupów",
+      "description": "Wysyła teraz dzisiejszą listę zakupów i dodaje ją do listy zakupów.",
+      "fields": {
+        "config_entry_id": {
+          "name": "Planer",
+          "description": "Potrzebne tylko przy więcej niż jednym planerze."
+        }
+      }
+    }
+  },
+  "exceptions": {
+    "entry_not_found": {
+      "message": "Nie znaleziono załadowanego planera obiadów."
+    },
+    "entry_ambiguous": {
+      "message": "Jest więcej niż jeden planer: wybierz jeden."
+    }
+  }
+}

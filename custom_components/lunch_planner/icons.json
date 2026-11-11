@@ -1,0 +1,27 @@
+{
+  "entity": {
+    "todo": {
+      "soup": { "default": "mdi:bowl-mix" },
+      "dish": { "default": "mdi:pasta" },
+      "protein": { "default": "mdi:food-steak" },
+      "starch": { "default": "mdi:french-fries" },
+      "salad": { "default": "mdi:leaf" }
+    },
+    "calendar": {
+      "plan": { "default": "mdi:calendar-star" }
+    },
+    "sensor": {
+      "today": { "default": "mdi:silverware-fork-knife" },
+      "tomorrow": { "default": "mdi:silverware-clean" },
+      "next_shopping": { "default": "mdi:cart" }
+    },
+    "button": {
+      "redraw": { "default": "mdi:dice-multiple" },
+      "send_shopping": { "default": "mdi:cart-arrow-right" }
+    }
+  },
+  "services": {
+    "redraw": { "service": "mdi:dice-multiple" },
+    "send_shopping_list": { "service": "mdi:cart-arrow-right" }
+  }
+}

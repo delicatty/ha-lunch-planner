@@ -1,0 +1,192 @@
+{
+  "title": "Lunch Planner",
+  "config": {
+    "step": {
+      "user": {
+        "title": "Lunch planner",
+        "description": "Name of this planner, e.g. the household it plans lunches for.",
+        "data": {
+          "name": "Name"
+        }
+      },
+      "settings": {
+        "title": "Settings",
+        "description": "The meal database is kept in five to-do lists created by this integration. In an item's description put what to buy, one thing per line or separated by commas. A `season: 5-7` line limits the item to May–July. A ticked-off item is not drawn.",
+        "data": {
+          "meal_days": "Lunch days",
+          "meal_mode": "What each lunch is",
+          "soup_share": "Share of soup days",
+          "avoid_previous_week": "Avoid last week's meals",
+          "draw_weekday": "Weekly draw: day",
+          "draw_time": "Weekly draw: time",
+          "shopping_mode": "When to send the shopping list",
+          "shopping_time": "Shopping list time",
+          "person": "Person",
+          "arrival_delay": "Delay after arrival",
+          "no_shopping_days": "Days without shopping",
+          "notify_services": "Send notifications to",
+          "shopping_list": "Add to shopping list"
+        },
+        "data_description": {
+          "meal_days": "Days that get a planned lunch.",
+          "soup_share": "Only for \"Soup or main course\": the part of the week that gets a soup.",
+          "avoid_previous_week": "Prefer meals that were not served the week before, when the database has enough of them.",
+          "draw_weekday": "The draw plans the week starting on the next Monday. It must come before the shopping for Monday.",
+          "shopping_time": "With \"When I get home\" this is the earliest time.",
+          "person": "For \"When I get home\": the list waits until this person is home.",
+          "arrival_delay": "Minutes at home before the list is sent.",
+          "no_shopping_days": "Shopping for the day after is moved to the last earlier day, e.g. Monday's lunch is bought on Saturday when shops are closed on Sunday.",
+          "notify_services": "Notify actions, e.g. notify.mobile_app_phone. The weekly plan and the shopping lists are sent here.",
+          "shopping_list": "To-do list the things to buy are added to."
+        }
+      }
+    },
+    "error": {
+      "no_meal_days": "Choose at least one lunch day.",
+      "no_shopping_day_left": "Leave at least one day for shopping."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Settings",
+        "description": "The meal database is kept in five to-do lists created by this integration. In an item's description put what to buy, one thing per line or separated by commas. A `season: 5-7` line limits the item to May–July. A ticked-off item is not drawn.",
+        "data": {
+          "meal_days": "Lunch days",
+          "meal_mode": "What each lunch is",
+          "soup_share": "Share of soup days",
+          "avoid_previous_week": "Avoid last week's meals",
+          "draw_weekday": "Weekly draw: day",
+          "draw_time": "Weekly draw: time",
+          "shopping_mode": "When to send the shopping list",
+          "shopping_time": "Shopping list time",
+          "person": "Person",
+          "arrival_delay": "Delay after arrival",
+          "no_shopping_days": "Days without shopping",
+          "notify_services": "Send notifications to",
+          "shopping_list": "Add to shopping list"
+        },
+        "data_description": {
+          "meal_days": "Days that get a planned lunch.",
+          "soup_share": "Only for \"Soup or main course\": the part of the week that gets a soup.",
+          "avoid_previous_week": "Prefer meals that were not served the week before, when the database has enough of them.",
+          "draw_weekday": "The draw plans the week starting on the next Monday. It must come before the shopping for Monday.",
+          "shopping_time": "With \"When I get home\" this is the earliest time.",
+          "person": "For \"When I get home\": the list waits until this person is home.",
+          "arrival_delay": "Minutes at home before the list is sent.",
+          "no_shopping_days": "Shopping for the day after is moved to the last earlier day, e.g. Monday's lunch is bought on Saturday when shops are closed on Sunday.",
+          "notify_services": "Notify actions, e.g. notify.mobile_app_phone. The weekly plan and the shopping lists are sent here.",
+          "shopping_list": "To-do list the things to buy are added to."
+        }
+      }
+    },
+    "error": {
+      "no_meal_days": "Choose at least one lunch day.",
+      "no_shopping_day_left": "Leave at least one day for shopping."
+    }
+  },
+  "selector": {
+    "meal_mode": {
+      "options": {
+        "soup_or_main": "Soup or main course (one per day)",
+        "soup_and_main": "Soup and main course",
+        "soup_only": "Soup only",
+        "main_only": "Main course only"
+      }
+    },
+    "shopping_mode": {
+      "options": {
+        "time": "At a set time",
+        "presence": "When I get home (from the set time, until 22:00)"
+      }
+    },
+    "weekday": {
+      "options": {
+        "mon": "Monday",
+        "tue": "Tuesday",
+        "wed": "Wednesday",
+        "thu": "Thursday",
+        "fri": "Friday",
+        "sat": "Saturday",
+        "sun": "Sunday"
+      }
+    }
+  },
+  "entity": {
+    "todo": {
+      "soup": {
+        "name": "Soups"
+      },
+      "dish": {
+        "name": "One-part main courses"
+      },
+      "protein": {
+        "name": "Main course: main part"
+      },
+      "starch": {
+        "name": "Main course: starchy side"
+      },
+      "salad": {
+        "name": "Main course: salads and vegetables"
+      }
+    },
+    "calendar": {
+      "plan": {
+        "name": "Lunch plan"
+      }
+    },
+    "sensor": {
+      "today": {
+        "name": "Today's lunch"
+      },
+      "tomorrow": {
+        "name": "Tomorrow's lunch"
+      },
+      "next_shopping": {
+        "name": "Next shopping"
+      }
+    },
+    "button": {
+      "redraw": {
+        "name": "Draw upcoming lunches again"
+      },
+      "send_shopping": {
+        "name": "Send shopping list now"
+      }
+    }
+  },
+  "services": {
+    "redraw": {
+      "name": "Draw lunches again",
+      "description": "Draws again one day, or every upcoming lunch whose shopping is not done yet.",
+      "fields": {
+        "config_entry_id": {
+          "name": "Planner",
+          "description": "Needed only with more than one planner."
+        },
+        "date": {
+          "name": "Date",
+          "description": "Draw only this day. Leave empty for all upcoming lunches."
+        }
+      }
+    },
+    "send_shopping_list": {
+      "name": "Send shopping list",
+      "description": "Sends today's shopping list now and adds it to the shopping list.",
+      "fields": {
+        "config_entry_id": {
+          "name": "Planner",
+          "description": "Needed only with more than one planner."
+        }
+      }
+    }
+  },
+  "exceptions": {
+    "entry_not_found": {
+      "message": "No loaded Lunch Planner found."
+    },
+    "entry_ambiguous": {
+      "message": "There is more than one planner: choose one."
+    }
+  }
+}
