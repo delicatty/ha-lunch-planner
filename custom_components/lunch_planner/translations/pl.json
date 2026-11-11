@@ -11,7 +11,7 @@
       },
       "settings": {
         "title": "Ustawienia",
-        "description": "Baza dań to pięć list zadań, które tworzy ta integracja. W opisie pozycji wpisz, co kupić: każdą rzecz w osobnej linii albo po przecinku. Linia `sezon: 5-7` ogranicza pozycję do maja–lipca. Odhaczona pozycja nie jest losowana.",
+        "description": "Baza dań to pięć list zadań, które tworzy ta integracja; edytujesz je w panelu planera w pasku bocznym. W opisie pozycji wpisz, co kupić: każdą rzecz w osobnej linii albo po przecinku. Linia `sezon: 5-7` ogranicza pozycję do maja–lipca. Odhaczona pozycja nie jest losowana.",
         "data": {
           "meal_days": "Dni z obiadem",
           "meal_mode": "Co jest na obiad",
@@ -25,7 +25,8 @@
           "arrival_delay": "Opóźnienie po powrocie",
           "no_shopping_days": "Dni bez zakupów",
           "notify_services": "Wysyłaj powiadomienia do",
-          "shopping_list": "Dodawaj do listy zakupów"
+          "shopping_list": "Dodawaj do listy zakupów",
+          "show_panel": "Pokazuj panel planera w pasku bocznym"
         },
         "data_description": {
           "meal_days": "Dni, na które losowany jest obiad.",
@@ -37,7 +38,8 @@
           "arrival_delay": "Ile minut po powrocie wysłać listę.",
           "no_shopping_days": "Zakupy na następny dzień przechodzą na ostatni wcześniejszy dzień, np. obiad na poniedziałek kupujesz w sobotę, gdy w niedzielę sklepy są zamknięte.",
           "notify_services": "Akcje powiadomień, np. notify.mobile_app_telefon. Trafia tu plan tygodnia i listy zakupów.",
-          "shopping_list": "Lista zadań, na którą trafiają rzeczy do kupienia."
+          "shopping_list": "Lista zadań, na którą trafiają rzeczy do kupienia.",
+          "show_panel": "Panel z planem i bazą dań. Listy bazy dań są ukryte w panelu list zadań; jeśli wyłączysz panel, odkryj je w ustawieniach encji."
         }
       }
     },
@@ -50,7 +52,7 @@
     "step": {
       "init": {
         "title": "Ustawienia",
-        "description": "Baza dań to pięć list zadań, które tworzy ta integracja. W opisie pozycji wpisz, co kupić: każdą rzecz w osobnej linii albo po przecinku. Linia `sezon: 5-7` ogranicza pozycję do maja–lipca. Odhaczona pozycja nie jest losowana.",
+        "description": "Baza dań to pięć list zadań, które tworzy ta integracja; edytujesz je w panelu planera w pasku bocznym. W opisie pozycji wpisz, co kupić: każdą rzecz w osobnej linii albo po przecinku. Linia `sezon: 5-7` ogranicza pozycję do maja–lipca. Odhaczona pozycja nie jest losowana.",
         "data": {
           "meal_days": "Dni z obiadem",
           "meal_mode": "Co jest na obiad",
@@ -64,7 +66,8 @@
           "arrival_delay": "Opóźnienie po powrocie",
           "no_shopping_days": "Dni bez zakupów",
           "notify_services": "Wysyłaj powiadomienia do",
-          "shopping_list": "Dodawaj do listy zakupów"
+          "shopping_list": "Dodawaj do listy zakupów",
+          "show_panel": "Pokazuj panel planera w pasku bocznym"
         },
         "data_description": {
           "meal_days": "Dni, na które losowany jest obiad.",
@@ -76,7 +79,8 @@
           "arrival_delay": "Ile minut po powrocie wysłać listę.",
           "no_shopping_days": "Zakupy na następny dzień przechodzą na ostatni wcześniejszy dzień, np. obiad na poniedziałek kupujesz w sobotę, gdy w niedzielę sklepy są zamknięte.",
           "notify_services": "Akcje powiadomień, np. notify.mobile_app_telefon. Trafia tu plan tygodnia i listy zakupów.",
-          "shopping_list": "Lista zadań, na którą trafiają rzeczy do kupienia."
+          "shopping_list": "Lista zadań, na którą trafiają rzeczy do kupienia.",
+          "show_panel": "Panel z planem i bazą dań. Listy bazy dań są ukryte w panelu list zadań; jeśli wyłączysz panel, odkryj je w ustawieniach encji."
         }
       }
     },

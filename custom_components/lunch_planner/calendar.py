@@ -12,7 +12,6 @@ from homeassistant.util import dt as dt_util
 
 from . import LunchPlannerConfigEntry
 from .entity import LunchPlannerEntity
-from .planner import meal_title
 
 
 async def async_setup_entry(
@@ -23,7 +22,7 @@ async def async_setup_entry(
     async_add_entities([PlanCalendar(entry.runtime_data, "plan")])
 
 
-def _event(meal: dict[str, Any]) -> CalendarEvent:
+def _event(meal: dict[str, Any], title: str) -> CalendarEvent:
     day = date.fromisoformat(meal["date"])
     description = "\n".join(
         f"{p['name']}: {', '.join(p['ingredients'])}"
@@ -34,7 +33,7 @@ def _event(meal: dict[str, Any]) -> CalendarEvent:
     return CalendarEvent(
         start=day,
         end=day + timedelta(days=1),
-        summary=meal_title(meal),
+        summary=title,
         description=description,
         uid=meal["date"],
     )
@@ -49,7 +48,8 @@ class PlanCalendar(LunchPlannerEntity, CalendarEntity):
         today = self.planner.today().isoformat()
         for iso in sorted(self.planner.plan):
             if iso >= today:
-                return _event(self.planner.plan[iso])
+                meal = self.planner.plan[iso]
+                return _event(meal, self.planner.event_title(meal))
         return None
 
     async def async_get_events(
@@ -61,5 +61,5 @@ class PlanCalendar(LunchPlannerEntity, CalendarEntity):
             day_start = dt_util.start_of_local_day(day)
             day_end = dt_util.start_of_local_day(day + timedelta(days=1))
             if day_start < end_date and day_end > start_date:
-                events.append(_event(meal))
+                events.append(_event(meal, self.planner.event_title(meal)))
         return events

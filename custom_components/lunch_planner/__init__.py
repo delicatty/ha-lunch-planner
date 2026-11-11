@@ -21,6 +21,7 @@ from .const import (
     SERVICE_SEND_SHOPPING_LIST,
 )
 from .manager import LunchPlanner
+from .panel import async_update_panel
 
 type LunchPlannerConfigEntry = ConfigEntry[LunchPlanner]
 
@@ -87,6 +88,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: LunchPlannerConfigEntry)
     planner.async_start()
     entry.async_on_unload(planner.async_stop)
     entry.async_on_unload(entry.add_update_listener(_async_options_updated))
+    await async_update_panel(hass, loading=entry.entry_id)
     return True
 
 
@@ -99,6 +101,7 @@ async def async_unload_entry(hass: HomeAssistant, entry: LunchPlannerConfigEntry
     unloaded = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
     if unloaded:
         await entry.runtime_data.async_flush()
+        await async_update_panel(hass, unloading=entry.entry_id)
     return unloaded
 
 

@@ -49,6 +49,7 @@ CONF_ARRIVAL_DELAY = "arrival_delay"
 CONF_NO_SHOPPING_DAYS = "no_shopping_days"
 CONF_NOTIFY = "notify_services"
 CONF_SHOPPING_LIST = "shopping_list"
+CONF_SHOW_PANEL = "show_panel"
 
 DEFAULT_OPTIONS = {
     CONF_MEAL_DAYS: ["mon", "tue", "wed", "thu", "fri"],
@@ -64,6 +65,7 @@ DEFAULT_OPTIONS = {
     CONF_ARRIVAL_DELAY: 15,
     CONF_NO_SHOPPING_DAYS: ["sun"],
     CONF_NOTIFY: [],
+    CONF_SHOW_PANEL: True,
 }
 
 # In presence mode, a shopping list held back while nobody was home is not
@@ -89,6 +91,9 @@ MESSAGES = {
         "to_buy": "To buy:",
         "weekdays": ("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"),
         "default_name": "Lunch planner",
+        "event": "Lunch: {meal}",
+        "soup_format": "{name} soup",
+        "soup_word": "soup",
     },
     "pl": {
         "plan_title": "Plan obiadów na tydzień",
@@ -97,6 +102,9 @@ MESSAGES = {
         "to_buy": "Do kupienia:",
         "weekdays": ("pon", "wt", "śr", "czw", "pt", "sob", "nd"),
         "default_name": "Obiady",
+        "event": "Obiad: {meal}",
+        "soup_format": "zupa {name}",
+        "soup_word": "zup",
     },
 }
 

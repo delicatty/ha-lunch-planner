@@ -12,8 +12,11 @@ It is made for people who don't cook from recipes: a lunch is either a
 
 ## Features
 
-- The meal database is five ordinary to-do lists you edit in Home Assistant:
-  soups, one-part main courses, main parts, starchy sides, salads/vegetables.
+- A **Lunch planner panel** in the sidebar shows today's and tomorrow's lunch,
+  the plan and the meal database, ready right after installation.
+- The meal database is five to-do lists you edit in that panel: soups, one-part
+  main courses, main parts, starchy sides, salads/vegetables. They are hidden
+  from the To-do panel so they don't clutter it.
 - In an item's description you list what to buy for it, one thing per line or
   separated by commas. With no description, the item's name goes on the list.
 - Seasonal items: a `season: 5-7` line limits an item to May–July.
@@ -23,7 +26,8 @@ It is made for people who don't cook from recipes: a lunch is either a
   last week's meals are avoided.
 - What a lunch is: soup **or** main course (you choose the share of soup days),
   soup **and** main course, soup only, or main course only.
-- The plan is a calendar, plus "today's lunch" and "tomorrow's lunch" sensors.
+- The plan is a calendar ("Lunch: mushroom soup"), plus "today's lunch" and
+  "tomorrow's lunch" sensors.
 - The weekly plan is sent as a notification with a **Draw again** button.
 - The shopping list is sent the day before each lunch, at a set time or when you
   get home. Days without shopping (e.g. Sunday) move it earlier, so Monday's
@@ -38,7 +42,7 @@ It is made for people who don't cook from recipes: a lunch is either a
    (On Home Assistant 2026.10 and older: HACS → Custom repositories.)
 2. Download **Lunch Planner** and restart Home Assistant.
 3. **Settings → Devices & services → Add integration → Lunch Planner.**
-4. Fill the five to-do lists created by the integration.
+4. Open the new panel in the sidebar and fill the meal database.
 
 ## Settings
 
@@ -52,6 +56,7 @@ It is made for people who don't cook from recipes: a lunch is either a
 | Days without shopping | Sunday |
 | Notifications | none: choose your phone's notify action |
 | Shopping to-do list | none |
+| Sidebar panel | on (turning it off: unhide the database lists in their entity settings) |
 
 The weekly draw must come before the shopping for the first lunch of the week.
 If it hasn't run yet when that shopping is due, the missing days are drawn then.
@@ -60,7 +65,7 @@ If it hasn't run yet when that shopping is due, the missing days are drawn then.
 
 | Entity | What it is |
 |---|---|
-| `todo.*` (5) | The meal database |
+| `todo.*` (5) | The meal database (hidden; edited in the panel or any to-do list card) |
 | `calendar.*_lunch_plan` | The drawn plan, one all-day event per lunch |
 | `sensor.*_today_s_lunch`, `sensor.*_tomorrow_s_lunch` | The lunch; ingredients in attributes |
 | `sensor.*_next_shopping` | Date of the next shopping list; meals and items in attributes |
@@ -97,8 +102,11 @@ Obiad to **zupa** albo **drugie danie**. Drugie danie jest jednoskładnikowe
 (np. spaghetti) albo składa się ze **składnika głównego** (kotlet), **dodatku
 skrobiowego** (ziemniaki) i **surówki lub warzyw**.
 
-- Baza dań to pięć list zadań w Home Assistant. W opisie pozycji wpisz, co
-  kupić (w osobnych liniach albo po przecinku). Bez opisu na listę trafia nazwa.
+- Po instalacji w pasku bocznym pojawia się panel z obiadem na dziś i jutro,
+  planem i bazą dań.
+- Baza dań to pięć list zadań, które edytujesz w tym panelu (w panelu list zadań
+  są ukryte). W opisie pozycji wpisz, co kupić (w osobnych liniach albo po
+  przecinku). Bez opisu na listę trafia nazwa.
 - Linia `sezon: 5-7` ogranicza pozycję do maja–lipca. Odhaczona pozycja nie
   jest losowana.
 - Losowanie raz w tygodniu (domyślnie sobota 9:00) planuje tydzień od

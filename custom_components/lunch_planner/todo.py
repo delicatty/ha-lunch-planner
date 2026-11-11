@@ -33,6 +33,8 @@ async def async_setup_entry(
 class CatalogList(LunchPlannerEntity, TodoListEntity):
     """One category of the meal database."""
 
+    # Kept out of the To-do panel: the Lunch planner panel shows these lists.
+    _attr_entity_registry_visible_default = False
     _attr_supported_features = (
         TodoListEntityFeature.CREATE_TODO_ITEM
         | TodoListEntityFeature.UPDATE_TODO_ITEM

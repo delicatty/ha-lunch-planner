@@ -224,6 +224,28 @@ def test_meal_title():
     assert planner.meal_title(meal) == "Grzybowa + Schabowy, Ziemniaki"
 
 
+@pytest.mark.parametrize(
+    ("parts", "polish", "english"),
+    [
+        ([("soup", "Grzybowa")], "Zupa grzybowa", "Grzybowa soup"),
+        ([("soup", "Zupa pomidorowa")], "Zupa pomidorowa", "Zupa pomidorowa soup"),
+        ([("soup", "Tomato soup")], "Zupa tomato soup", "Tomato soup"),
+        ([("dish", "Warzywa na patelnię")], "Warzywa na patelnię", "Warzywa na patelnię"),
+        (
+            [("protein", "Kotlet schabowy"), ("starch", "Frytki"), ("salad", "Mizeria")],
+            "Kotlet schabowy, frytki, mizeria",
+            "Kotlet schabowy, frytki, mizeria",
+        ),
+        ([("soup", "Grzybowa"), ("dish", "BBQ wings")], "Zupa grzybowa + BBQ wings", "Grzybowa soup + BBQ wings"),
+    ],
+)
+def test_meal_text(parts, polish, english):
+    meal = {"parts": [{"category": c, "name": n} for c, n in parts]}
+    assert planner.meal_text(meal, "zupa {name}", "zup") == polish
+    assert planner.meal_text(meal) == english
+    assert planner.meal_text(meal, "zupa {name}", "zup", capitalize=False) == polish[:1].lower() + polish[1:]
+
+
 def test_shopping_items_are_deduplicated():
     meals = [
         {"parts": [{"name": "A", "ingredients": ["Ziemniaki", "masło"]}]},

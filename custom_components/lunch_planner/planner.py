@@ -125,6 +125,41 @@ def meal_title(meal: Mapping[str, Any]) -> str:
     return " + ".join(groups)
 
 
+def _lower_first(name: str) -> str:
+    """``Grzybowa`` -> ``grzybowa``, but keep acronyms such as ``BBQ``."""
+    if len(name) > 1 and name[:2].isupper():
+        return name
+    return name[:1].lower() + name[1:]
+
+
+def meal_text(
+    meal: Mapping[str, Any],
+    soup_format: str = "{name} soup",
+    soup_word: str = "soup",
+    capitalize: bool = True,
+) -> str:
+    """Natural description of a meal, e.g. ``Mushroom soup`` or ``Pork chop, fries``.
+
+    ``soup_format`` turns a soup's name into a phrase (``zupa {name}`` in
+    Polish), unless the name already contains ``soup_word``.
+    """
+    soups = []
+    mains = []
+    for part in meal.get("parts", []):
+        name = _lower_first(part["name"].strip())
+        if part["category"] == SOUP:
+            if soup_word.casefold() not in name.casefold():
+                name = soup_format.format(name=name)
+            soups.append(name)
+        else:
+            mains.append(name)
+    groups = [", ".join(soups)] if soups else []
+    if mains:
+        groups.append(", ".join(mains))
+    text = " + ".join(groups)
+    return text[:1].upper() + text[1:] if capitalize else text
+
+
 def meal_shopping_items(meals: Iterable[Mapping[str, Any]]) -> list[str]:
     """Deduplicated things to buy for the given meals, in serving order."""
     result: list[str] = []

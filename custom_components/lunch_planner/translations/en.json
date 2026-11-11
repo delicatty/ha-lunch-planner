@@ -11,7 +11,7 @@
       },
       "settings": {
         "title": "Settings",
-        "description": "The meal database is kept in five to-do lists created by this integration. In an item's description put what to buy, one thing per line or separated by commas. A `season: 5-7` line limits the item to May–July. A ticked-off item is not drawn.",
+        "description": "The meal database is kept in five to-do lists created by this integration; edit them in the Lunch planner panel in the sidebar. In an item's description put what to buy, one thing per line or separated by commas. A `season: 5-7` line limits the item to May–July. A ticked-off item is not drawn.",
         "data": {
           "meal_days": "Lunch days",
           "meal_mode": "What each lunch is",
@@ -25,7 +25,8 @@
           "arrival_delay": "Delay after arrival",
           "no_shopping_days": "Days without shopping",
           "notify_services": "Send notifications to",
-          "shopping_list": "Add to shopping list"
+          "shopping_list": "Add to shopping list",
+          "show_panel": "Show the Lunch planner panel"
         },
         "data_description": {
           "meal_days": "Days that get a planned lunch.",
@@ -37,7 +38,8 @@
           "arrival_delay": "Minutes at home before the list is sent.",
           "no_shopping_days": "Shopping for the day after is moved to the last earlier day, e.g. Monday's lunch is bought on Saturday when shops are closed on Sunday.",
           "notify_services": "Notify actions, e.g. notify.mobile_app_phone. The weekly plan and the shopping lists are sent here.",
-          "shopping_list": "To-do list the things to buy are added to."
+          "shopping_list": "To-do list the things to buy are added to.",
+          "show_panel": "A sidebar panel with the plan and the meal database. The database lists are hidden from the To-do panel; if you turn this off, unhide them in their entity settings."
         }
       }
     },
@@ -50,7 +52,7 @@
     "step": {
       "init": {
         "title": "Settings",
-        "description": "The meal database is kept in five to-do lists created by this integration. In an item's description put what to buy, one thing per line or separated by commas. A `season: 5-7` line limits the item to May–July. A ticked-off item is not drawn.",
+        "description": "The meal database is kept in five to-do lists created by this integration; edit them in the Lunch planner panel in the sidebar. In an item's description put what to buy, one thing per line or separated by commas. A `season: 5-7` line limits the item to May–July. A ticked-off item is not drawn.",
         "data": {
           "meal_days": "Lunch days",
           "meal_mode": "What each lunch is",
@@ -64,7 +66,8 @@
           "arrival_delay": "Delay after arrival",
           "no_shopping_days": "Days without shopping",
           "notify_services": "Send notifications to",
-          "shopping_list": "Add to shopping list"
+          "shopping_list": "Add to shopping list",
+          "show_panel": "Show the Lunch planner panel"
         },
         "data_description": {
           "meal_days": "Days that get a planned lunch.",
@@ -76,7 +79,8 @@
           "arrival_delay": "Minutes at home before the list is sent.",
           "no_shopping_days": "Shopping for the day after is moved to the last earlier day, e.g. Monday's lunch is bought on Saturday when shops are closed on Sunday.",
           "notify_services": "Notify actions, e.g. notify.mobile_app_phone. The weekly plan and the shopping lists are sent here.",
-          "shopping_list": "To-do list the things to buy are added to."
+          "shopping_list": "To-do list the things to buy are added to.",
+          "show_panel": "A sidebar panel with the plan and the meal database. The database lists are hidden from the To-do panel; if you turn this off, unhide them in their entity settings."
         }
       }
     },

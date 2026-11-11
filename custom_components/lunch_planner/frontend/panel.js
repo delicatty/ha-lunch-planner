@@ -1,0 +1,282 @@
+/**
+ * Lunch Planner sidebar panel.
+ *
+ * Built from Home Assistant's own dashboard cards (tile, calendar, markdown,
+ * to-do list), so it looks and behaves like the rest of the interface.
+ * The Python side passes the entity IDs of every planner in panel.config.
+ */
+
+const TEXTS = {
+  en: {
+    plan: "Plan",
+    database: "Meal database",
+    redrawConfirm: "Draw all upcoming lunches again? Lunches already shopped for stay.",
+    hint:
+      "Add meals to the lists below. In an item's description write what to buy, " +
+      "one thing per line or separated by commas; with no description its name goes " +
+      "on the shopping list. A `season: 5-7` line limits an item to May–July. " +
+      "A ticked-off item stays here but is not drawn.",
+  },
+  pl: {
+    plan: "Plan",
+    database: "Baza dań",
+    redrawConfirm:
+      "Wylosować ponownie wszystkie nadchodzące obiady? Te, na które już zrobiono zakupy, zostaną.",
+    hint:
+      "Dodawaj dania do list poniżej. W opisie pozycji wpisz, co kupić: każdą rzecz " +
+      "w osobnej linii albo po przecinku. Bez opisu na listę zakupów trafia nazwa. " +
+      "Linia `sezon: 5-7` ogranicza pozycję do maja–lipca. Odhaczona pozycja zostaje " +
+      "w bazie, ale nie jest losowana.",
+  },
+};
+
+const STYLE = `
+  :host {
+    display: block;
+    min-height: 100vh;
+    background: var(--primary-background-color);
+    color: var(--primary-text-color);
+  }
+  .toolbar {
+    display: flex;
+    align-items: center;
+    height: var(--header-height, 56px);
+    padding: 0 12px;
+    gap: 12px;
+    background: var(--app-header-background-color, var(--primary-color));
+    color: var(--app-header-text-color, var(--text-primary-color));
+    font-size: 20px;
+    position: sticky;
+    top: 0;
+    z-index: 2;
+  }
+  .content {
+    max-width: 1280px;
+    margin: 0 auto;
+    padding: 16px;
+    box-sizing: border-box;
+  }
+  h1 {
+    font-size: 22px;
+    font-weight: 500;
+    margin: 8px 4px 4px;
+  }
+  h2 {
+    font-size: 18px;
+    font-weight: 500;
+    margin: 24px 4px 12px;
+  }
+  .plan {
+    display: grid;
+    grid-template-columns: minmax(280px, 1fr) minmax(320px, 2fr);
+    gap: 16px;
+    align-items: start;
+  }
+  .stack {
+    display: grid;
+    gap: 8px;
+  }
+  .lists {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 16px;
+    align-items: start;
+  }
+  @media (max-width: 760px) {
+    .plan {
+      grid-template-columns: 1fr;
+    }
+    .content {
+      padding: 8px;
+    }
+  }
+`;
+
+class LunchPlannerPanel extends HTMLElement {
+  constructor() {
+    super();
+    this.attachShadow({ mode: "open" });
+    this._cards = [];
+    this._menuButton = null;
+    this._built = false;
+    this._building = false;
+  }
+
+  set hass(hass) {
+    this._hass = hass;
+    for (const card of this._cards) card.hass = hass;
+    if (this._menuButton) this._menuButton.hass = hass;
+    this._maybeBuild();
+  }
+
+  get hass() {
+    return this._hass;
+  }
+
+  set narrow(narrow) {
+    this._narrow = narrow;
+    if (this._menuButton) this._menuButton.narrow = narrow;
+  }
+
+  set panel(panel) {
+    const config = panel && panel.config;
+    if (JSON.stringify(config) !== JSON.stringify(this._config)) {
+      this._config = config;
+      this._built = false;
+      this._maybeBuild();
+    }
+  }
+
+  _texts() {
+    const lang = (this._hass && this._hass.language) || "en";
+    return lang.toLowerCase().startsWith("pl") ? TEXTS.pl : TEXTS.en;
+  }
+
+  /** Entity name without the planner (device) name in front of it. */
+  _name(entityId, plannerTitle) {
+    const state = this._hass.states[entityId];
+    const name = (state && state.attributes.friendly_name) || entityId;
+    return name.startsWith(plannerTitle + " ") ? name.slice(plannerTitle.length + 1) : name;
+  }
+
+  async _maybeBuild() {
+    if (this._built || this._building || !this._hass || !this._config) return;
+    this._building = true;
+    try {
+      const helpers = await window.loadCardHelpers();
+      this._render(helpers);
+      this._built = true;
+    } finally {
+      this._building = false;
+    }
+  }
+
+  _card(helpers, config, parent) {
+    const card = helpers.createCardElement(config);
+    card.hass = this._hass;
+    this._cards.push(card);
+    parent.appendChild(card);
+    return card;
+  }
+
+  _render(helpers) {
+    const texts = this._texts();
+    const root = this.shadowRoot;
+    root.innerHTML = "";
+    this._cards = [];
+
+    const style = document.createElement("style");
+    style.textContent = STYLE;
+    root.appendChild(style);
+
+    const toolbar = document.createElement("div");
+    toolbar.className = "toolbar";
+    this._menuButton = document.createElement("ha-menu-button");
+    this._menuButton.hass = this._hass;
+    this._menuButton.narrow = this._narrow;
+    toolbar.appendChild(this._menuButton);
+    const title = document.createElement("div");
+    title.textContent = this._config.title;
+    toolbar.appendChild(title);
+    root.appendChild(toolbar);
+
+    const content = document.createElement("div");
+    content.className = "content";
+    root.appendChild(content);
+
+    const planners = this._config.planners || [];
+    for (const planner of planners) {
+      const e = planner.entities || {};
+
+      if (planners.length > 1) {
+        const heading = document.createElement("h1");
+        heading.textContent = planner.title;
+        content.appendChild(heading);
+      }
+
+      const planHeading = document.createElement("h2");
+      planHeading.textContent = texts.plan;
+      content.appendChild(planHeading);
+
+      const plan = document.createElement("div");
+      plan.className = "plan";
+      content.appendChild(plan);
+
+      const stack = document.createElement("div");
+      stack.className = "stack";
+      plan.appendChild(stack);
+      for (const key of ["today", "tomorrow", "next_shopping"]) {
+        if (e[key]) {
+          this._card(helpers, { type: "tile", entity: e[key], vertical: false }, stack);
+        }
+      }
+      if (e.redraw) {
+        this._card(
+          helpers,
+          {
+            type: "tile",
+            entity: e.redraw,
+            name: this._name(e.redraw, planner.title),
+            show_entity_picture: false,
+            hide_state: true,
+            tap_action: {
+              action: "perform-action",
+              perform_action: "button.press",
+              target: { entity_id: e.redraw },
+              confirmation: { text: texts.redrawConfirm },
+            },
+          },
+          stack,
+        );
+      }
+      if (e.send_shopping) {
+        this._card(
+          helpers,
+          {
+            type: "tile",
+            entity: e.send_shopping,
+            name: this._name(e.send_shopping, planner.title),
+            hide_state: true,
+            tap_action: {
+              action: "perform-action",
+              perform_action: "button.press",
+              target: { entity_id: e.send_shopping },
+            },
+          },
+          stack,
+        );
+      }
+
+      if (e.plan) {
+        const calendarBox = document.createElement("div");
+        plan.appendChild(calendarBox);
+        this._card(
+          helpers,
+          { type: "calendar", entities: [e.plan], initial_view: "listWeek" },
+          calendarBox,
+        );
+      }
+
+      const dbHeading = document.createElement("h2");
+      dbHeading.textContent = texts.database;
+      content.appendChild(dbHeading);
+      this._card(helpers, { type: "markdown", content: texts.hint }, content);
+
+      const lists = document.createElement("div");
+      lists.className = "lists";
+      lists.style.marginTop = "16px";
+      content.appendChild(lists);
+      for (const entityId of planner.lists || []) {
+        this._card(
+          helpers,
+          { type: "todo-list", entity: entityId, title: this._name(entityId, planner.title) },
+          lists,
+        );
+      }
+    }
+  }
+}
+
+if (!customElements.get("lunch-planner-panel")) {
+  customElements.define("lunch-planner-panel", LunchPlannerPanel);
+}

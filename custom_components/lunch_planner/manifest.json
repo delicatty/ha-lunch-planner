@@ -3,11 +3,11 @@
   "name": "Lunch Planner",
   "codeowners": ["@delicatty"],
   "config_flow": true,
-  "dependencies": ["todo", "calendar"],
+  "dependencies": ["calendar", "frontend", "http", "panel_custom", "todo"],
   "documentation": "https://github.com/delicatty/ha-lunch-planner",
   "integration_type": "service",
   "iot_class": "calculated",
   "issue_tracker": "https://github.com/delicatty/ha-lunch-planner/issues",
   "requirements": [],
-  "version": "0.1.0"
+  "version": "0.2.0"
 }

@@ -24,6 +24,7 @@ from .const import (
     CONF_SHOPPING_LIST,
     CONF_SHOPPING_MODE,
     CONF_SHOPPING_TIME,
+    CONF_SHOW_PANEL,
     CONF_SOUP_SHARE,
     DEFAULT_OPTIONS,
     DOMAIN,
@@ -114,6 +115,7 @@ def _options_schema(hass: HomeAssistant, current: dict[str, Any]) -> vol.Schema:
             vol.Optional(CONF_SHOPPING_LIST, **suggested(CONF_SHOPPING_LIST)): selector.EntitySelector(
                 selector.EntitySelectorConfig(domain="todo")
             ),
+            vol.Required(CONF_SHOW_PANEL, **default(CONF_SHOW_PANEL)): selector.BooleanSelector(),
         }
     )
 

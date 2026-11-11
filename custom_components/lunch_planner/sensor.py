@@ -12,7 +12,7 @@ from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 from . import LunchPlannerConfigEntry
 from .entity import LunchPlannerEntity
 from .manager import LunchPlanner
-from .planner import meal_shopping_items, meal_title
+from .planner import meal_shopping_items
 
 
 async def async_setup_entry(
@@ -51,7 +51,7 @@ class MealSensor(LunchPlannerEntity, SensorEntity):
     @property
     def native_value(self) -> str | None:
         meal = self._meal()
-        return meal_title(meal)[:255] if meal else None
+        return self.planner.describe(meal)[:255] if meal else None
 
     @property
     def extra_state_attributes(self) -> dict[str, Any] | None:
@@ -77,6 +77,6 @@ class ShoppingSensor(LunchPlannerEntity, SensorEntity):
         _, meals = upcoming
         return {
             "meal_dates": [m["date"] for m in meals],
-            "meals": [meal_title(m) for m in meals],
+            "meals": [self.planner.describe(m) for m in meals],
             "shopping_items": meal_shopping_items(meals),
         }

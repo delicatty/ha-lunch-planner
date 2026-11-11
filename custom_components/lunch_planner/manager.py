@@ -288,6 +288,16 @@ class LunchPlanner:
 
     # -- notifications -----------------------------------------------------
 
+    def describe(self, meal: dict[str, Any], capitalize: bool = True) -> str:
+        """The meal in words, in the Home Assistant language."""
+        return planner.meal_text(
+            meal, self.texts["soup_format"], self.texts["soup_word"], capitalize
+        )
+
+    def event_title(self, meal: dict[str, Any]) -> str:
+        """Calendar title, e.g. ``Obiad: zupa grzybowa``."""
+        return self.texts["event"].format(meal=self.describe(meal, capitalize=False))
+
     def _day_label(self, day: date) -> str:
         return f"{self.texts['weekdays'][day.weekday()]} {day.strftime('%d.%m')}"
 
@@ -309,7 +319,7 @@ class LunchPlanner:
         for day in sorted(days):
             meal = self.meal_for(day)
             if meal:
-                lines.append(f"{self._day_label(day)}: {planner.meal_title(meal)}")
+                lines.append(f"{self._day_label(day)}: {self.describe(meal)}")
         if not lines:
             return
         await self._notify(
@@ -372,7 +382,7 @@ class LunchPlanner:
         items = planner.meal_shopping_items(meals)
         days = ", ".join(self._day_label(date.fromisoformat(m["date"])) for m in meals)
         lines = [
-            f"{self._day_label(date.fromisoformat(m['date']))}: {planner.meal_title(m)}"
+            f"{self._day_label(date.fromisoformat(m['date']))}: {self.describe(m)}"
             for m in meals
         ]
         lines += ["", self.texts["to_buy"], *[f"• {i}" for i in items]]

@@ -148,6 +148,13 @@ async def test_setup_creates_entities_and_first_plan(
     )
     plan_events = next(iter(events.values()))["events"]
     assert [e["start"] for e in plan_events] == ["2026-11-12", "2026-11-13"]
+    for event in plan_events:
+        assert event["summary"].startswith("Obiad: ")
+        assert event["summary"][7].islower(), event["summary"]
+    soup_events = [e for e in plan_events if e["summary"] in ("Obiad: zupa kalafiorowa", "Obiad: zupa grzybowa")]
+    planner = entry.runtime_data
+    soup_days = [iso for iso, m in planner.plan.items() if m["parts"][0]["category"] == "soup"]
+    assert len(soup_events) == len(soup_days)
 
 
 async def test_item_description_and_disabled_items(
@@ -174,7 +181,7 @@ async def test_item_description_and_disabled_items(
         await hass.services.async_call(DOMAIN, "redraw", {"date": "2026-11-12"}, blocking=True)
         await hass.async_block_till_done()
         state = hass.states.get(entity(hass, entry, "sensor", "tomorrow"))
-        assert state.state == "Pomidorowa"
+        assert state.state == "Zupa pomidorowa"
         assert state.attributes["shopping_items"] == ["passata", "śmietana", "makaron"]
 
 
@@ -238,9 +245,8 @@ async def test_saturday_shopping_for_monday_and_lock(
         blocking=True, return_response=True,
     )
     on_list = [i["summary"] for i in items["todo.shopping_list"]["items"]]
-    assert on_list and set(on_list) <= {
-        i for p in monday["parts"] for i in p["ingredients"]
-    }
+    # The shopping list file outlives a test run, so only check our items are on it.
+    assert {i for p in monday["parts"] for i in p["ingredients"]} <= set(on_list)
 
     # Monday is bought for, so drawing again leaves it alone.
     await hass.services.async_call(DOMAIN, "redraw", {}, blocking=True)
@@ -306,6 +312,42 @@ async def test_presence_mode_late_arrival_is_skipped(
     async_fire_time_changed(hass)
     await hass.async_block_till_done()
     assert not [c for c in notify_calls if c.data["title"].startswith("Zakupy")]
+
+
+async def test_panel_and_hidden_lists(hass_pl: HomeAssistant, hass_client) -> None:
+    hass = hass_pl
+    entry = make_entry()
+    await setup_entry(hass, entry)
+
+    panels = hass.data["frontend_panels"]
+    assert "lunch-planner" in panels
+    panel = panels["lunch-planner"]
+    assert panel.sidebar_title == "Obiady"
+    planner_config = panel.config["planners"][0]
+    assert planner_config["entities"]["plan"] == entity(hass, entry, "calendar", "plan")
+    assert planner_config["lists"] == [
+        entity(hass, entry, "todo", c) for c in ("soup", "dish", "protein", "starch", "salad")
+    ]
+    assert panel.config["_panel_custom"]["module_url"].startswith("/lunch_planner_static/panel.js?v=")
+
+    # The database lists are kept out of the To-do panel.
+    registry = er.async_get(hass)
+    assert registry.async_get(entity(hass, entry, "todo", "soup")).hidden_by is er.RegistryEntryHider.INTEGRATION
+
+    client = await hass_client()
+    response = await client.get("/lunch_planner_static/panel.js")
+    assert response.status == 200
+    assert "lunch-planner-panel" in await response.text()
+
+    # Turning the panel off removes it; unloading removes it as well.
+    hass.config_entries.async_update_entry(entry, options={**entry.options, "show_panel": False})
+    await hass.async_block_till_done()
+    assert "lunch-planner" not in hass.data["frontend_panels"]
+    hass.config_entries.async_update_entry(entry, options={**entry.options, "show_panel": True})
+    await hass.async_block_till_done()
+    assert "lunch-planner" in hass.data["frontend_panels"]
+    await hass.config_entries.async_unload(entry.entry_id)
+    assert "lunch-planner" not in hass.data["frontend_panels"]
 
 
 async def test_unload_and_remove(hass_pl: HomeAssistant) -> None:
