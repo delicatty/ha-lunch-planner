@@ -82,35 +82,3 @@ SERVICE_REMOVE_MEAL = "remove_meal"
 
 ACTION_REDRAW_PREFIX = "LUNCH_PLANNER_REDRAW_"
 EVENT_PLAN_UPDATED = f"{DOMAIN}_plan_updated"
-
-# Push notification texts. Home Assistant translations do not cover
-# notification bodies, so they live here.
-MESSAGES = {
-    "en": {
-        "plan_title": "Lunch plan for the week",
-        "redraw": "Draw again",
-        "shopping_title": "Shopping for lunch: {days}",
-        "to_buy": "To buy:",
-        "weekdays": ("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"),
-        "default_name": "Lunch planner",
-        "event": "Lunch: {meal}",
-        "soup_format": "{name} soup",
-        "soup_word": "soup",
-    },
-    "pl": {
-        "plan_title": "Plan obiadów na tydzień",
-        "redraw": "Losuj ponownie",
-        "shopping_title": "Zakupy na obiad: {days}",
-        "to_buy": "Do kupienia:",
-        "weekdays": ("pon", "wt", "śr", "czw", "pt", "sob", "nd"),
-        "default_name": "Obiady",
-        "event": "Obiad: {meal}",
-        "soup_format": "zupa {name}",
-        "soup_word": "zup",
-    },
-}
-
-
-def messages(language: str | None) -> dict:
-    """Notification texts for the Home Assistant language."""
-    return MESSAGES["pl"] if (language or "").lower().startswith("pl") else MESSAGES["en"]

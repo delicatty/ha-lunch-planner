@@ -18,7 +18,8 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers import entity_registry as er
 from homeassistant.loader import async_get_integration
 
-from .const import CONF_SHOW_PANEL, DEFAULT_OPTIONS, DOMAIN, messages
+from .const import CONF_SHOW_PANEL, DEFAULT_OPTIONS, DOMAIN
+from .texts import async_load_texts
 
 PANEL_URL_PATH = "lunch-planner"
 PANEL_COMPONENT = "lunch-planner-panel"
@@ -65,8 +66,10 @@ async def async_update_panel(
         )
         hass.data[_STATIC_REGISTERED] = True
 
-    texts = messages(hass.config.language)
-    title = entries[0].title if len(entries) == 1 else texts["default_name"]
+    if len(entries) == 1:
+        title = entries[0].title
+    else:
+        title = (await async_load_texts(hass)).get("default_name", "Lunch planner")
     # The version in the URL makes browsers load the new script after an update.
     version = (await async_get_integration(hass, DOMAIN)).version
     await panel_custom.async_register_panel(

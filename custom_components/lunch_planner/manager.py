@@ -45,8 +45,8 @@ from .const import (
     SHOPPING_MODE_PRESENCE,
     STORAGE_VERSION,
     WEEKDAYS,
-    messages,
 )
+from .texts import async_load_texts
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -122,6 +122,7 @@ class LunchPlanner:
         self._unsubs: list[CALLBACK_TYPE] = []
         self._arrival_timer: CALLBACK_TYPE | None = None
         self._rng = random.Random()
+        self._texts: dict[str, str] = {}
 
     # -- options ---------------------------------------------------------
 
@@ -146,11 +147,12 @@ class LunchPlanner:
 
     @property
     def texts(self) -> dict:
-        return messages(self.hass.config.language)
+        return self._texts
 
     # -- storage ---------------------------------------------------------
 
     async def async_load(self) -> None:
+        self._texts = await async_load_texts(self.hass)
         data = await self._store.async_load() or {}
         stored_items = data.get("items", {})
         self.items = {
@@ -352,7 +354,7 @@ class LunchPlanner:
         return self.texts["event"].format(meal=self.describe(meal, capitalize=False))
 
     def _day_label(self, day: date) -> str:
-        return f"{self.texts['weekdays'][day.weekday()]} {day.strftime('%d.%m')}"
+        return f"{self.texts[f'weekday_{WEEKDAYS[day.weekday()]}']} {day.strftime('%d.%m')}"
 
     async def _notify(self, title: str, message: str, data: dict | None = None) -> None:
         for target in self.option(CONF_NOTIFY) or []:

@@ -7,77 +7,36 @@
  * lunch_planner/meals/* WebSocket commands.
  */
 
-const TEXTS = {
-  en: {
-    plan: "Plan",
-    database: "Meal database",
-    single: "Single dishes",
-    composed: "Composed main courses",
-    categories: {
-      soup: "Soup",
-      dish: "Main course",
-      protein: "Main part",
-      starch: "Starchy side",
-      salad: "Salad / vegetables",
-    },
-    add: "Add",
-    empty: "Nothing here yet.",
-    toBuy: "Buy",
-    draw: "Draw",
-    drawHelp: "Switched off: the meal stays here but is not drawn.",
-    redrawConfirm: "Draw all upcoming lunches again? Lunches already shopped for stay.",
-    addTitle: "Add meal",
-    editTitle: "Edit meal",
-    name: "Name",
-    ingredients: "What to buy",
-    ingredientsHelp: "One thing per line. Empty: the name goes on the shopping list.",
-    season: "Season",
-    allYear: "All year",
-    months: "Only in some months",
-    from: "from",
-    to: "to",
-    cancel: "Cancel",
-    save: "Save",
-    delete: "Delete",
-    deleteConfirm: "Delete this meal?",
-    error: "Could not save",
-  },
-  pl: {
-    plan: "Plan",
-    database: "Baza dań",
-    single: "Jednoskładnikowe",
-    composed: "Wieloskładnikowe",
-    categories: {
-      soup: "Zupa",
-      dish: "Drugie danie",
-      protein: "Składnik główny",
-      starch: "Dodatek skrobiowy",
-      salad: "Surówka / warzywa",
-    },
-    add: "Dodaj",
-    empty: "Jeszcze nic tu nie ma.",
-    toBuy: "Kupić",
-    draw: "Losuj",
-    drawHelp: "Wyłączone: danie zostaje w bazie, ale nie jest losowane.",
-    redrawConfirm:
-      "Wylosować ponownie wszystkie nadchodzące obiady? Te, na które już zrobiono zakupy, zostaną.",
-    addTitle: "Dodaj danie",
-    editTitle: "Edytuj danie",
-    name: "Nazwa",
-    ingredients: "Co kupić",
-    ingredientsHelp: "Każda rzecz w osobnej linii. Puste: na listę zakupów trafia nazwa.",
-    season: "Sezon",
-    allYear: "Cały rok",
-    months: "Tylko w wybranych miesiącach",
-    from: "od",
-    to: "do",
-    cancel: "Anuluj",
-    save: "Zapisz",
-    delete: "Usuń",
-    deleteConfirm: "Usunąć to danie?",
-    error: "Nie udało się zapisać",
-  },
+// Texts come from translations/*.json (selector "panel"), loaded with
+// hass.loadBackendTranslation. Property name -> translation key.
+const TEXT_KEYS = {
+  plan: "plan",
+  database: "database",
+  single: "single",
+  composed: "composed",
+  add: "add",
+  empty: "empty",
+  toBuy: "to_buy",
+  draw: "draw",
+  drawHelp: "draw_help",
+  redrawConfirm: "redraw_confirm",
+  addTitle: "add_title",
+  editTitle: "edit_title",
+  name: "name",
+  ingredients: "ingredients",
+  ingredientsHelp: "ingredients_help",
+  season: "season",
+  allYear: "all_year",
+  months: "months",
+  from: "from",
+  to: "to",
+  cancel: "cancel",
+  save: "save",
+  delete: "delete",
+  deleteConfirm: "delete_confirm",
+  error: "error",
 };
+const CATEGORIES = ["soup", "dish", "protein", "starch", "salad"];
 
 const GROUPS = [
   ["single", ["soup", "dish"], "two"],
@@ -234,10 +193,16 @@ class LunchPlannerPanel extends HTMLElement {
 
   set hass(hass) {
     const first = !this._hass;
+    const languageChanged = this._built && hass.language !== this._language;
     this._hass = hass;
     for (const card of this._cards) card.hass = hass;
     if (this._menuButton) this._menuButton.hass = hass;
-    if (first) this._maybeBuild();
+    if (languageChanged) {
+      this._built = false;
+      this._maybeBuild();
+    } else if (first) {
+      this._maybeBuild();
+    }
   }
 
   get hass() {
@@ -266,9 +231,18 @@ class LunchPlannerPanel extends HTMLElement {
     if (this._built) this._subscribe();
   }
 
+  _t(key) {
+    const text = this._localize
+      ? this._localize(`component.lunch_planner.selector.panel.options.${key}`)
+      : "";
+    return text || key;
+  }
+
   _texts() {
-    const lang = (this._hass && this._hass.language) || "en";
-    return lang.toLowerCase().startsWith("pl") ? TEXTS.pl : TEXTS.en;
+    const texts = {};
+    for (const [prop, key] of Object.entries(TEXT_KEYS)) texts[prop] = this._t(key);
+    texts.categories = Object.fromEntries(CATEGORIES.map((c) => [c, this._t(`category_${c}`)]));
+    return texts;
   }
 
   _monthName(month) {
@@ -295,6 +269,8 @@ class LunchPlannerPanel extends HTMLElement {
     this._building = true;
     try {
       const helpers = await loadCardHelpers();
+      this._language = this._hass.language;
+      this._localize = await this._hass.loadBackendTranslation("selector", "lunch_planner");
       this._render(helpers);
       this._built = true;
       this._subscribe();

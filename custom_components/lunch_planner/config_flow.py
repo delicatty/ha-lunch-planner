@@ -31,8 +31,8 @@ from .const import (
     MEAL_MODES,
     SHOPPING_MODES,
     WEEKDAYS,
-    messages,
 )
+from .texts import async_load_texts
 
 # Notify actions that are not a single device.
 _SKIP_NOTIFY = {"notify", "send_message"}
@@ -139,7 +139,7 @@ class LunchPlannerConfigFlow(ConfigFlow, domain=DOMAIN):
         if user_input is not None:
             self._name = user_input[CONF_NAME]
             return await self.async_step_settings()
-        default_name = messages(self.hass.config.language)["default_name"]
+        default_name = (await async_load_texts(self.hass)).get("default_name", "Lunch planner")
         return self.async_show_form(
             step_id="user",
             data_schema=vol.Schema({vol.Required(CONF_NAME, default=default_name): str}),

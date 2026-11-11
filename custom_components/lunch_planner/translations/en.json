@@ -123,6 +123,59 @@
         "starch": "Main course: starchy side",
         "salad": "Main course: salad / vegetables"
       }
+    },
+    "panel": {
+      "options": {
+        "plan": "Plan",
+        "database": "Meal database",
+        "single": "Single dishes",
+        "composed": "Composed main courses",
+        "category_soup": "Soup",
+        "category_dish": "Main course",
+        "category_protein": "Main part",
+        "category_starch": "Starchy side",
+        "category_salad": "Salad / vegetables",
+        "add": "Add",
+        "empty": "Nothing here yet.",
+        "to_buy": "Buy",
+        "draw": "Draw",
+        "draw_help": "Switched off: the meal stays here but is not drawn.",
+        "redraw_confirm": "Draw all upcoming lunches again? Lunches already shopped for stay.",
+        "add_title": "Add meal",
+        "edit_title": "Edit meal",
+        "name": "Name",
+        "ingredients": "What to buy",
+        "ingredients_help": "One thing per line. Empty: the name goes on the shopping list.",
+        "season": "Season",
+        "all_year": "All year",
+        "months": "Only in some months",
+        "from": "from",
+        "to": "to",
+        "cancel": "Cancel",
+        "save": "Save",
+        "delete": "Delete",
+        "delete_confirm": "Delete this meal?",
+        "error": "Could not save"
+      }
+    },
+    "notification": {
+      "options": {
+        "default_name": "Lunch planner",
+        "plan_title": "Lunch plan for the week",
+        "redraw": "Draw again",
+        "shopping_title": "Shopping for lunch: {days}",
+        "to_buy": "To buy:",
+        "event": "Lunch: {meal}",
+        "soup_format": "{name} soup",
+        "soup_word": "soup",
+        "weekday_mon": "Mon",
+        "weekday_tue": "Tue",
+        "weekday_wed": "Wed",
+        "weekday_thu": "Thu",
+        "weekday_fri": "Fri",
+        "weekday_sat": "Sat",
+        "weekday_sun": "Sun"
+      }
     }
   },
   "entity": {

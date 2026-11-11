@@ -123,6 +123,59 @@
         "starch": "Drugie danie: dodatek skrobiowy",
         "salad": "Drugie danie: surówka / warzywa"
       }
+    },
+    "panel": {
+      "options": {
+        "plan": "Plan",
+        "database": "Baza dań",
+        "single": "Jednoskładnikowe",
+        "composed": "Wieloskładnikowe",
+        "category_soup": "Zupa",
+        "category_dish": "Drugie danie",
+        "category_protein": "Składnik główny",
+        "category_starch": "Dodatek skrobiowy",
+        "category_salad": "Surówka / warzywa",
+        "add": "Dodaj",
+        "empty": "Jeszcze nic tu nie ma.",
+        "to_buy": "Kupić",
+        "draw": "Losuj",
+        "draw_help": "Wyłączone: danie zostaje w bazie, ale nie jest losowane.",
+        "redraw_confirm": "Wylosować ponownie wszystkie nadchodzące obiady? Te, na które już zrobiono zakupy, zostaną.",
+        "add_title": "Dodaj danie",
+        "edit_title": "Edytuj danie",
+        "name": "Nazwa",
+        "ingredients": "Co kupić",
+        "ingredients_help": "Każda rzecz w osobnej linii. Puste: na listę zakupów trafia nazwa.",
+        "season": "Sezon",
+        "all_year": "Cały rok",
+        "months": "Tylko w wybranych miesiącach",
+        "from": "od",
+        "to": "do",
+        "cancel": "Anuluj",
+        "save": "Zapisz",
+        "delete": "Usuń",
+        "delete_confirm": "Usunąć to danie?",
+        "error": "Nie udało się zapisać"
+      }
+    },
+    "notification": {
+      "options": {
+        "default_name": "Obiady",
+        "plan_title": "Plan obiadów na tydzień",
+        "redraw": "Losuj ponownie",
+        "shopping_title": "Zakupy na obiad: {days}",
+        "to_buy": "Do kupienia:",
+        "event": "Obiad: {meal}",
+        "soup_format": "zupa {name}",
+        "soup_word": "zup",
+        "weekday_mon": "pon",
+        "weekday_tue": "wt",
+        "weekday_wed": "śr",
+        "weekday_thu": "czw",
+        "weekday_fri": "pt",
+        "weekday_sat": "sob",
+        "weekday_sun": "nd"
+      }
     }
   },
   "entity": {
