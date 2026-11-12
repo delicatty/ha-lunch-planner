@@ -6,7 +6,8 @@ blueprint:
     are shopping days (e.g. Monday's lunch is bought on Saturday when shops are
     closed on Sunday). When a lunch is bought in the morning of its day (after
     a long break, e.g. Easter), the list is sent the evening before.
-    Optionally waits until a person is home.
+    Optionally, when a person is at work at the set time, the list is sent as
+    they leave work, so they can shop on the way home.
   domain: automation
   author: delicatty
   source_url: https://github.com/delicatty/ha-lunch-planner/blob/main/blueprints/automation/lunch_planner/shopping_list.yaml
@@ -66,53 +67,79 @@ blueprint:
           default: "To buy tomorrow morning:"
           selector:
             text:
-    presence:
-      name: Wait until home
-      icon: mdi:home-account
+    leaving_work:
+      name: Leaving work
+      icon: mdi:briefcase-outline
       collapsed: true
       input:
         person:
           name: Person
           description: >-
-            If this person is away at the set time, the list is sent once they
-            have been home for the delay below. Leave empty to always send at
-            the set time. An unknown location counts as home.
+            If this person is in the work zone at the set time, the list is
+            sent when they leave it, so they can shop on the way home. Leave
+            this or the zone empty to always send at the set time.
           default: ""
           selector:
             entity:
               domain: person
-        arrival_delay:
-          name: Delay after arriving home
-          default: 15
+        work_zone:
+          name: Work zone
+          default: ""
           selector:
-            number:
-              min: 0
-              max: 120
-              step: 5
-              unit_of_measurement: min
+            entity:
+              domain: zone
+        earliest_time:
+          name: Earliest time
+          description: >-
+            Leaving work before this time (e.g. for a lunch break) does not
+            send the list. Leaving after it sends the list right away, also
+            before the set time.
+          default: "15:00:00"
+          selector:
+            time:
         latest_time:
           name: Latest time
-          description: After this time the list is not sent that day.
-          default: "22:00:00"
+          description: >-
+            If the person is still at work at this time, the list is sent
+            anyway.
+          default: "20:00:00"
           selector:
             time:
 
 mode: single
 max_exceeded: silent
 
+trigger_variables:
+  person: !input person
+  work_zone: !input work_zone
+
 variables:
   sensor: !input to_buy_sensor
-  person: !input person
-  arrival_delay: !input arrival_delay
+  earliest_time: !input earliest_time
   latest_time: !input latest_time
   lists: !input shopping_lists
   title: !input title
   to_buy_text: !input to_buy_text
   morning_text: !input morning_text
+  use_work: "{{ person != '' and work_zone != '' }}"
+  at_work: "{{ use_work and person in (state_attr(work_zone, 'persons') or []) }}"
+  items: "{{ state_attr(sensor, 'shopping_items') or [] }}"
+  summary: "{{ state_attr(sensor, 'summary') or '' }}"
+  heading: "{{ morning_text if state_attr(sensor, 'shopping_morning') else to_buy_text }}"
 
 triggers:
   - trigger: time
+    id: scheduled
     at: !input time
+  - alias: The person leaves the work zone
+    trigger: template
+    id: left_work
+    value_template: >-
+      {{ person != '' and work_zone != ''
+         and person not in (state_attr(work_zone, 'persons') or []) }}
+  - trigger: time
+    id: latest
+    at: !input latest_time
 
 conditions:
   - alias: The shopping list goes out today
@@ -120,26 +147,26 @@ conditions:
     value_template: >-
       {{ (state_attr(sensor, 'list_date') or state_attr(sensor, 'shopping_date'))
          == now().date().isoformat() }}
+  - alias: There is something to buy
+    condition: template
+    value_template: "{{ items | count > 0 }}"
+  - alias: Not sent yet today
+    condition: template
+    value_template: >-
+      {{ this.attributes.last_triggered is none
+         or as_local(this.attributes.last_triggered).date() < now().date() }}
+  - alias: The right moment
+    condition: template
+    value_template: >-
+      {% if trigger.id == 'scheduled' %}
+        {{ not at_work }}
+      {% elif trigger.id == 'left_work' %}
+        {{ today_at(earliest_time) <= now() < today_at(latest_time) }}
+      {% else %}
+        {{ use_work }}
+      {% endif %}
 
 actions:
-  - alias: Wait until the person is home
-    if:
-      - condition: template
-        value_template: >-
-          {{ person != '' and states(person) not in ['home', 'unknown', 'unavailable'] }}
-    then:
-      - alias: Home for the whole delay (re-checked on every change and every minute)
-        wait_template: >-
-          {{ is_state(person, 'home')
-             and (now() - states[person].last_changed).total_seconds() >= arrival_delay * 60 }}
-        timeout: "{{ [(today_at(latest_time) - now()).total_seconds(), 0] | max | int }}"
-        continue_on_timeout: false
-  - variables:
-      items: "{{ state_attr(sensor, 'shopping_items') or [] }}"
-      summary: "{{ state_attr(sensor, 'summary') or '' }}"
-      heading: "{{ morning_text if state_attr(sensor, 'shopping_morning') else to_buy_text }}"
-  - condition: template
-    value_template: "{{ items | count > 0 }}"
   - alias: Notify the phone
     device_id: !input notify_device
     domain: mobile_app

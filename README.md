@@ -80,11 +80,22 @@ Saturday) is drawn on its own at midnight before its shopping day.
 
 | Blueprint | What it does | Import |
 |---|---|---|
-| Shopping list | On a shopping day (or the evening before shopping in the morning), at a set time or once you are home, sends what to buy to a phone and adds it to to-do lists | [![Import](https://my.home-assistant.io/badges/blueprint_import.svg)](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https%3A%2F%2Fgithub.com%2Fdelicatty%2Fha-lunch-planner%2Fblob%2Fmain%2Fblueprints%2Fautomation%2Flunch_planner%2Fshopping_list.yaml) |
+| Shopping list | On a shopping day (or the evening before shopping in the morning), at a set time or as you leave work, sends what to buy to a phone and adds it to to-do lists | [![Import](https://my.home-assistant.io/badges/blueprint_import.svg)](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https%3A%2F%2Fgithub.com%2Fdelicatty%2Fha-lunch-planner%2Fblob%2Fmain%2Fblueprints%2Fautomation%2Flunch_planner%2Fshopping_list.yaml) |
 | Weekly plan | Sends the plan after the weekly draw, with a **Draw again** button | [![Import](https://my.home-assistant.io/badges/blueprint_import.svg)](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https%3A%2F%2Fgithub.com%2Fdelicatty%2Fha-lunch-planner%2Fblob%2Fmain%2Fblueprints%2Fautomation%2Flunch_planner%2Fweekly_plan.yaml) |
 
 Their texts (title, "To buy:", "To buy tomorrow morning:", button) are inputs,
 so write them in your language.
+
+The shopping list goes out once a day, at the set time (17:00 by default).
+With a person and a work zone set under **Leaving work**, it can catch you on
+the way home instead:
+
+- If you are in the work zone at the set time, the list goes out as you leave
+  it.
+- Leaving work after the earliest time (15:00 by default) sends it right away,
+  also before the set time; leaving earlier (e.g. for a lunch break) does not.
+- If you are still at work at the latest time (20:00 by default), it goes out
+  anyway.
 
 ## Entities
 
@@ -186,6 +197,13 @@ skrobiowego** (ziemniaki) i **surówki lub warzyw**.
 - Powiadomienia i dopisywanie do listy zakupów robią automatyzacje: gotowe
   blueprinty „Shopping list” i „Weekly plan” zaimportujesz przyciskami
   w tabeli [Blueprints](#blueprints). Ich teksty wpisujesz po polsku.
+  Lista zakupów przychodzi raz dziennie o ustawionej godzinie (domyślnie
+  17:00). Gdy w sekcji „Leaving work” wybierzesz osobę i strefę pracy, a o tej
+  godzinie jesteś w pracy, lista przyjdzie, kiedy z niej wyjdziesz. Wyjście
+  po najwcześniejszej godzinie (domyślnie 15:00) wysyła ją od razu, także
+  przed ustawioną godziną, a wcześniejsze (np. na obiad) nie. Jeśli o
+  najpóźniejszej godzinie (domyślnie 20:00) wciąż jesteś w pracy, lista i tak
+  przychodzi.
 - Identyfikatory encji tworzy Home Assistant z nazwy planera i nazwy encji
   w języku serwera, np. `sensor.obiady_do_kupienia`. Wszystkie encje znajdziesz
   przy urządzeniu planera w **Ustawienia → Urządzenia i usługi → Urządzenia**.

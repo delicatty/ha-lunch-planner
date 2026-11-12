@@ -86,6 +86,7 @@ async def test_automations_from_blueprints_load(
                                     "notify_device": phone,
                                     "shopping_lists": ["todo.shopping_list"],
                                     "person": "person.marzena",
+                                    "work_zone": "zone.work",
                                 },
                             },
                         },
