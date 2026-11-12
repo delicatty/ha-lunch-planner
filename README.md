@@ -160,24 +160,27 @@ integration the `notification` selector from there.
 ## Polski
 
 Planer obiadów raz w tygodniu losuje obiady (w dni robocze, w weekendy albo
-codziennie) z prostej bazy dań
+codziennie) z prostej bazy posiłków
 i wylicza, co i którego dnia kupić na każdy obiad.
 
-Obiad to **zupa** albo **drugie danie**. Drugie danie jest jednoskładnikowe
-(np. spaghetti) albo składa się ze **składnika głównego** (kotlet), **dodatku
-skrobiowego** (ziemniaki) i **surówki lub warzyw**.
+Obiad to **zupa** albo **drugie danie**. Drugie danie ma ustalony skład
+(np. spaghetti albo kurczak z ryżem i warzywami) albo składa się z losowanych
+części: **składnika głównego** (kotlet), **dodatku skrobiowego** (ziemniaki)
+i **surówki lub warzyw**.
 
 - Po instalacji w pasku bocznym pojawia się panel z dwiema zakładkami:
-  **Plan** (kalendarz planu, obiad na dziś i jutro, co kupić) i **Baza dań**
-  (edytor dań). Przycisk „Losuj ponownie nadchodzące
+  **Plan** (kalendarz planu, obiad na dziś i jutro, co kupić) i **Baza posiłków**
+  (edytor bazy). Przycisk „Losuj ponownie nadchodzące
   obiady” jest w sekcji „Akcje” pod kafelkami planu i pyta o potwierdzenie. W oknie
-  edycji dania Ctrl+Enter zapisuje.
+  edycji pozycji Ctrl+Enter zapisuje.
 - Każdy obiad to w kalendarzu planu wydarzenie o godzinie obiadu (domyślnie
   13:00) i o ustawionej długości (domyślnie 30 minut).
-- Bazę dań edytujesz w tym panelu. Każde danie ma nazwę, listę „Co kupić”
+- Bazę posiłków edytujesz w tym panelu. Ma dwie grupy: **Posiłki o ustalonym
+  składzie** (zupa, drugie danie) i **Części posiłku składanego** (składnik
+  główny, dodatek skrobiowy, surówka / warzywa). Każda pozycja ma nazwę, listę „Co kupić”
   (pusta: na listę zakupów trafia nazwa), opcjonalny sezon (np. maj–lipiec)
-  i przełącznik **Uwzględniaj w losowaniu**: wyłączone danie zostaje w bazie, ale nie jest
-  losowane.
+  i przełącznik **Uwzględniaj w losowaniu**: wyłączona pozycja zostaje w bazie, ale nie
+  jest losowana.
 - Obiad to jedno danie (zupa albo drugie danie), dwa dania (zupa i drugie
   danie), tylko zupa albo tylko drugie danie.
 - Losowanie raz w tygodniu (domyślnie sobota 9:00) planuje następny tydzień

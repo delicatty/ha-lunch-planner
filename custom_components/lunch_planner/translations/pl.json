@@ -11,7 +11,7 @@
       },
       "settings": {
         "title": "Ustawienia",
-        "description": "Dania dodajesz w panelu planera w pasku bocznym. Powiadomienia i listę zakupów wysyłają automatyzacje: w repozytorium integracji są do tego gotowe blueprinty.",
+        "description": "Posiłki i ich części dodajesz w panelu planera w pasku bocznym. Powiadomienia i listę zakupów wysyłają automatyzacje: w repozytorium integracji są do tego gotowe blueprinty.",
         "data": {
           "meal_schedule": "Kiedy obiady",
           "workdays": "Dni robocze",
@@ -33,7 +33,7 @@
           "workdays": "Twoje dni robocze; weekendy to pozostałe dni. Przy „Codziennie” nie mają znaczenia.",
           "meal_mode": "Jedno danie: zupa albo drugie danie. Dwa dania: zupa i drugie danie.",
           "soup_share": "Tylko przy „Jedno danie”: w ilu procentach dni jest zupa.",
-          "avoid_previous_week": "Wybieraj dania, których nie było tydzień wcześniej, jeśli baza na to pozwala.",
+          "avoid_previous_week": "Unikaj pozycji wylosowanych tydzień wcześniej, jeśli baza na to pozwala.",
           "week_start": "Losowanie tygodniowe planuje tydzień od tego dnia.",
           "draw_weekday": "Losowanie planuje następny tydzień. Najlepiej ustaw je przed zakupami na pierwszy obiad tygodnia. Obiad, na który zakupy wypadają wcześniej, wylosuje się sam o północy przed dniem zakupów.",
           "no_shopping_days": "Obiad kupujesz dzień wcześniej albo w ostatni wcześniejszy dzień z otwartymi sklepami. Po przerwie 3 dni lub dłuższej (np. Wielkanoc) kupujesz go rano w dniu obiadu.",
@@ -41,7 +41,7 @@
           "holiday_shops_closed": "Brak zakupów w dni z kalendarzy integracji Holiday. Inne kalendarze (np. urlop) odwołują tylko obiady.",
           "lunch_time": "O której zaczyna się obiad w kalendarzu planu.",
           "lunch_duration": "Ile minut trwa każdy obiad w kalendarzu planu.",
-          "show_panel": "Panel z planem i edytorem bazy dań. Bez niego dania zmieniasz akcjami add_meal i remove_meal."
+          "show_panel": "Panel z planem i edytorem bazy posiłków. Bez niego bazę zmieniasz akcjami add_meal i remove_meal."
         }
       }
     },
@@ -55,7 +55,7 @@
     "step": {
       "init": {
         "title": "Ustawienia",
-        "description": "Dania dodajesz w panelu planera w pasku bocznym. Powiadomienia i listę zakupów wysyłają automatyzacje: w repozytorium integracji są do tego gotowe blueprinty.",
+        "description": "Posiłki i ich części dodajesz w panelu planera w pasku bocznym. Powiadomienia i listę zakupów wysyłają automatyzacje: w repozytorium integracji są do tego gotowe blueprinty.",
         "data": {
           "meal_schedule": "Kiedy obiady",
           "workdays": "Dni robocze",
@@ -77,7 +77,7 @@
           "workdays": "Twoje dni robocze; weekendy to pozostałe dni. Przy „Codziennie” nie mają znaczenia.",
           "meal_mode": "Jedno danie: zupa albo drugie danie. Dwa dania: zupa i drugie danie.",
           "soup_share": "Tylko przy „Jedno danie”: w ilu procentach dni jest zupa.",
-          "avoid_previous_week": "Wybieraj dania, których nie było tydzień wcześniej, jeśli baza na to pozwala.",
+          "avoid_previous_week": "Unikaj pozycji wylosowanych tydzień wcześniej, jeśli baza na to pozwala.",
           "week_start": "Losowanie tygodniowe planuje tydzień od tego dnia.",
           "draw_weekday": "Losowanie planuje następny tydzień. Najlepiej ustaw je przed zakupami na pierwszy obiad tygodnia. Obiad, na który zakupy wypadają wcześniej, wylosuje się sam o północy przed dniem zakupów.",
           "no_shopping_days": "Obiad kupujesz dzień wcześniej albo w ostatni wcześniejszy dzień z otwartymi sklepami. Po przerwie 3 dni lub dłuższej (np. Wielkanoc) kupujesz go rano w dniu obiadu.",
@@ -85,7 +85,7 @@
           "holiday_shops_closed": "Brak zakupów w dni z kalendarzy integracji Holiday. Inne kalendarze (np. urlop) odwołują tylko obiady.",
           "lunch_time": "O której zaczyna się obiad w kalendarzu planu.",
           "lunch_duration": "Ile minut trwa każdy obiad w kalendarzu planu.",
-          "show_panel": "Panel z planem i edytorem bazy dań. Bez niego dania zmieniasz akcjami add_meal i remove_meal."
+          "show_panel": "Panel z planem i edytorem bazy posiłków. Bez niego bazę zmieniasz akcjami add_meal i remove_meal."
         }
       }
     },
@@ -125,18 +125,18 @@
     "category": {
       "options": {
         "soup": "Zupa",
-        "dish": "Drugie danie jednoskładnikowe",
-        "protein": "Drugie danie: składnik główny",
-        "starch": "Drugie danie: dodatek skrobiowy",
-        "salad": "Drugie danie: surówka / warzywa"
+        "dish": "Drugie danie (ustalony skład)",
+        "protein": "Składnik główny",
+        "starch": "Dodatek skrobiowy",
+        "salad": "Surówka / warzywa"
       }
     },
     "panel": {
       "options": {
         "plan": "Plan",
-        "database": "Baza dań",
-        "single": "Jednoskładnikowe",
-        "composed": "Wieloskładnikowe",
+        "database": "Baza posiłków",
+        "single": "Posiłki o ustalonym składzie",
+        "composed": "Części posiłku składanego",
         "category_soup": "Zupa",
         "category_dish": "Drugie danie",
         "category_protein": "Składnik główny",
@@ -147,8 +147,8 @@
         "to_buy": "Kupić",
         "draw": "Uwzględniaj w losowaniu",
         "redraw_confirm": "Wylosować ponownie wszystkie nadchodzące obiady? Te, na które już zrobiono zakupy, zostaną.",
-        "add_title": "Dodaj danie",
-        "edit_title": "Edytuj danie",
+        "add_title": "Dodaj pozycję",
+        "edit_title": "Edytuj pozycję",
         "name": "Nazwa",
         "ingredients": "Co kupić",
         "ingredients_help": "Każda rzecz w osobnej linii. Puste: na listę zakupów trafia nazwa.",
@@ -160,7 +160,7 @@
         "cancel": "Anuluj",
         "save": "Zapisz",
         "delete": "Usuń",
-        "delete_confirm": "Usunąć to danie?",
+        "delete_confirm": "Usunąć tę pozycję?",
         "error": "Nie udało się zapisać",
         "not_drawn": "nie losowane",
         "actions": "Akcje"
@@ -224,8 +224,8 @@
       }
     },
     "add_meal": {
-      "name": "Dodaj danie",
-      "description": "Dodaje danie do bazy albo zmienia danie o tej samej nazwie w tej kategorii.",
+      "name": "Dodaj pozycję",
+      "description": "Dodaje pozycję do bazy posiłków albo zmienia pozycję o tej samej nazwie w tej kategorii.",
       "fields": {
         "config_entry_id": {
           "name": "Planer",
@@ -243,20 +243,20 @@
         },
         "season_from": {
           "name": "Sezon od (miesiąc)",
-          "description": "Razem z „Sezon do”: danie jest losowane tylko w tych miesiącach."
+          "description": "Razem z „Sezon do”: pozycja jest losowana tylko w tych miesiącach."
         },
         "season_to": {
           "name": "Sezon do (miesiąc)"
         },
         "active": {
           "name": "Losuj",
-          "description": "Wyłączone: danie zostaje w bazie, ale nie jest losowane."
+          "description": "Wyłączone: pozycja zostaje w bazie, ale nie jest losowana."
         }
       }
     },
     "remove_meal": {
-      "name": "Usuń danie",
-      "description": "Usuwa danie z bazy.",
+      "name": "Usuń pozycję",
+      "description": "Usuwa pozycję z bazy posiłków.",
       "fields": {
         "config_entry_id": {
           "name": "Planer",
@@ -282,7 +282,7 @@
       "message": "Podaj oba miesiące sezonu albo żaden."
     },
     "meal_not_found": {
-      "message": "W tej kategorii nie ma dania {name}."
+      "message": "W tej kategorii nie ma pozycji {name}."
     }
   }
 }
