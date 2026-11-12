@@ -1,6 +1,9 @@
 /**
  * Lunch Planner sidebar panel.
  *
+ * Two tabs, like a dashboard's views: the plan and the meal database. The tab
+ * is part of the URL (/lunch-planner, /lunch-planner/meals).
+ *
  * The plan part uses Home Assistant's own cards (tile, calendar). The meal
  * database is a small editor of its own, built from plain HTML styled with
  * Home Assistant's theme variables, talking to the integration over the
@@ -37,6 +40,11 @@ const TEXT_KEYS = {
   deleteConfirm: "delete_confirm",
   error: "error",
 };
+// Tab -> path under the panel's URL.
+const TABS = [
+  ["plan", ""],
+  ["database", "/meals"],
+];
 const CATEGORIES = ["soup", "dish", "protein", "starch", "salad"];
 
 const GROUPS = [
@@ -65,13 +73,23 @@ const STYLE = `
     top: 0;
     z-index: 2;
   }
+  .tabs { display: flex; align-self: stretch; margin-left: 12px; overflow-x: auto; scrollbar-width: none; }
+  .tab {
+    background: none; color: inherit; border-radius: 0; padding: 0 16px;
+    font-size: 14px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.05em;
+    opacity: 0.7; border-bottom: 2px solid transparent; white-space: nowrap;
+  }
+  .tab:hover { opacity: 1; }
+  .tab[aria-selected="true"] { opacity: 1; border-bottom-color: currentColor; }
+  .tab:focus-visible { outline: 2px solid currentColor; outline-offset: -4px; }
   .content { max-width: 1280px; margin: 0 auto; padding: 16px; box-sizing: border-box; }
   h1 { font-size: 22px; font-weight: 500; margin: 8px 4px 4px; }
   h2 { font-size: 18px; font-weight: 500; margin: 24px 4px 12px; }
   h3 { font-size: 16px; font-weight: 500; margin: 20px 4px 8px; color: var(--secondary-text-color); }
-  .plan { display: grid; grid-template-columns: minmax(280px, 1fr) minmax(320px, 2fr); gap: 16px; align-items: start; }
+  .plan { display: grid; grid-template-columns: minmax(320px, 2fr) minmax(280px, 1fr); gap: 16px; align-items: start; margin-top: 8px; }
   .stack { display: grid; gap: 8px; }
   .side h2 { margin-top: 16px; }
+  .meals > div > h3:first-child { margin-top: 8px; }
   .lists { display: grid; gap: 16px; align-items: start; }
   .lists.two { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .lists.three { grid-template-columns: repeat(3, minmax(0, 1fr)); }
@@ -154,6 +172,8 @@ const STYLE = `
   @media (max-width: 760px) {
     .plan, .lists.two, .lists.three { grid-template-columns: 1fr; }
     .content { padding: 8px; }
+    .tabs { margin-left: 0; }
+    .tab { padding: 0 12px; }
   }
 `;
 
@@ -206,6 +226,9 @@ class LunchPlannerPanel extends HTMLElement {
     this._meals = {}; // entry_id -> {category: [meal]}
     this._mealBoxes = {}; // entry_id -> element holding the meal lists
     this._unsubs = [];
+    this._tab = "plan";
+    this._tabButtons = {};
+    this._tabPages = {};
   }
 
   set hass(hass) {
@@ -229,6 +252,32 @@ class LunchPlannerPanel extends HTMLElement {
   set narrow(narrow) {
     this._narrow = narrow;
     if (this._menuButton) this._menuButton.narrow = narrow;
+  }
+
+  /** Home Assistant sets the route ({prefix, path}) when the URL changes. */
+  set route(route) {
+    this._route = route;
+    const path = (route && route.path) || "";
+    const tab = TABS.find(([, tabPath]) => tabPath && path.startsWith(tabPath));
+    this._tab = tab ? tab[0] : "plan";
+    this._showTab();
+  }
+
+  _openTab(tab) {
+    if (tab === this._tab) return;
+    const prefix = (this._route && this._route.prefix) || "/lunch-planner";
+    const path = TABS.find(([name]) => name === tab)[1];
+    // The same as Home Assistant's navigate(): it then sets the new route.
+    history.pushState(null, "", prefix + path);
+    window.dispatchEvent(new CustomEvent("location-changed", { detail: { replace: false } }));
+  }
+
+  _showTab() {
+    for (const [name] of TABS) {
+      const selected = name === this._tab;
+      if (this._tabButtons[name]) this._tabButtons[name].setAttribute("aria-selected", String(selected));
+      if (this._tabPages[name]) this._tabPages[name].hidden = !selected;
+    }
   }
 
   set panel(panel) {
@@ -341,10 +390,27 @@ class LunchPlannerPanel extends HTMLElement {
     this._menuButton = document.createElement("ha-menu-button");
     this._menuButton.hass = this._hass;
     this._menuButton.narrow = this._narrow;
-    root.appendChild(el("div", { class: "toolbar" }, this._menuButton, el("div", {}, this._config.title)));
+    const tabs = el("div", { class: "tabs", role: "tablist" });
+    this._tabButtons = {};
+    this._tabPages = {};
+    for (const [name] of TABS) {
+      this._tabButtons[name] = el(
+        "button",
+        { class: "tab", role: "tab", onclick: () => this._openTab(name) },
+        texts[name],
+      );
+      tabs.appendChild(this._tabButtons[name]);
+    }
+    root.appendChild(el("div", { class: "toolbar" }, this._menuButton, el("div", {}, this._config.title), tabs));
 
     const content = el("div", { class: "content" });
     root.appendChild(content);
+    for (const [name] of TABS) {
+      this._tabPages[name] = el("div", { role: "tabpanel", class: name === "database" ? "meals" : "" });
+      content.appendChild(this._tabPages[name]);
+    }
+    const planPage = this._tabPages.plan;
+    const mealsPage = this._tabPages.database;
 
     this._dialog = el("dialog");
     root.appendChild(this._dialog);
@@ -352,14 +418,17 @@ class LunchPlannerPanel extends HTMLElement {
     const planners = this._config.planners || [];
     for (const planner of planners) {
       const e = planner.entities || {};
-      if (planners.length > 1) content.appendChild(el("h1", {}, planner.title));
+      if (planners.length > 1) {
+        planPage.appendChild(el("h1", {}, planner.title));
+        mealsPage.appendChild(el("h1", {}, planner.title));
+      }
 
-      content.appendChild(el("h2", {}, texts.plan));
-      // Left column: the plan tiles and, right under them, the actions.
+      // The calendar, and next to it (under it on a phone) the plan tiles
+      // with the actions right under them.
       const stack = el("div", { class: "stack" });
       const side = el("div", { class: "side" }, stack);
       const calendarBox = el("div");
-      content.appendChild(el("div", { class: "plan" }, side, calendarBox));
+      planPage.appendChild(el("div", { class: "plan" }, calendarBox, side));
 
       for (const key of ["today", "tomorrow", "next_shopping", "to_buy"]) {
         if (e[key]) {
@@ -396,12 +465,12 @@ class LunchPlannerPanel extends HTMLElement {
         );
       }
 
-      content.appendChild(el("h2", {}, texts.database));
       const box = el("div");
-      content.appendChild(box);
+      mealsPage.appendChild(box);
       this._mealBoxes[planner.entry_id] = box;
       this._renderMeals(planner.entry_id);
     }
+    this._showTab();
   }
 
   _renderMeals(entryId) {

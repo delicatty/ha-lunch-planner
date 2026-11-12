@@ -16,9 +16,9 @@ adding to a shopping list are done by automations; two ready
 
 ## Features
 
-- A **Lunch planner panel** in the sidebar shows today's and tomorrow's lunch,
-  what to buy next, the plan and the meal database editor, ready right after
-  installation. **Draw upcoming lunches again** sits in an *Actions* section under the plan
+- A **Lunch planner panel** in the sidebar, ready right after installation,
+  has two tabs: **Plan** (the plan calendar, today's and tomorrow's lunch,
+  what to buy next) and **Meal database** (the meal editor). **Draw upcoming lunches again** sits in an *Actions* section under the plan
   tiles and asks for confirmation. In the meal editor Ctrl+Enter saves.
 - The meal database has five categories: soups and one-part main courses
   (single dishes); main parts, starchy sides and salads/vegetables (composed
@@ -167,8 +167,9 @@ Obiad to **zupa** albo **drugie danie**. Drugie danie jest jednoskładnikowe
 (np. spaghetti) albo składa się ze **składnika głównego** (kotlet), **dodatku
 skrobiowego** (ziemniaki) i **surówki lub warzyw**.
 
-- Po instalacji w pasku bocznym pojawia się panel z obiadem na dziś i jutro,
-  tym, co kupić, planem i bazą dań. Przycisk „Losuj ponownie nadchodzące
+- Po instalacji w pasku bocznym pojawia się panel z dwiema zakładkami:
+  **Plan** (kalendarz planu, obiad na dziś i jutro, co kupić) i **Baza dań**
+  (edytor dań). Przycisk „Losuj ponownie nadchodzące
   obiady” jest w sekcji „Akcje” pod kafelkami planu i pyta o potwierdzenie. W oknie
   edycji dania Ctrl+Enter zapisuje.
 - Każdy obiad to w kalendarzu planu wydarzenie o godzinie obiadu (domyślnie
