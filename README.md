@@ -20,6 +20,9 @@ adding to a shopping list are done by automations; two ready
   has two tabs: **Plan** (the plan calendar, today's and tomorrow's lunch,
   what to buy next) and **Meal database** (the meal editor). **Draw upcoming lunches again** sits in an *Actions* section under the plan
   tiles and asks for confirmation. In the meal editor Ctrl+Enter saves.
+- Only Home Assistant admins change the meal database and draw lunches again
+  (in the panel, with the button or with the actions). Other users see the
+  plan and the meal database read-only. Automations may always do both.
 - The meal database has five categories: soups and one-part main courses
   (single dishes); main parts, starchy sides and salads/vegetables (composed
   main courses).
@@ -173,6 +176,9 @@ i **surówki lub warzyw**.
   (edytor bazy). Przycisk „Losuj ponownie nadchodzące
   obiady” jest w sekcji „Akcje” pod kafelkami planu i pyta o potwierdzenie. W oknie
   edycji pozycji Ctrl+Enter zapisuje.
+- Bazę posiłków zmieniają i ponownie losują obiady tylko administratorzy Home
+  Assistanta (w panelu, przyciskiem i akcjami). Pozostali użytkownicy widzą
+  plan i bazę bez możliwości zmian. Automatyzacje mogą zawsze.
 - Każdy obiad to w kalendarzu planu wydarzenie o godzinie obiadu (domyślnie
   13:00) i o ustawionej długości (domyślnie 30 minut).
 - Bazę posiłków edytujesz w tym panelu. Ma dwie grupy: **Posiłki o ustalonym

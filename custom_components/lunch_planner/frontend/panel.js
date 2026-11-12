@@ -4,6 +4,9 @@
  * Two tabs, like a dashboard's views: the plan and the meal database. The tab
  * is part of the URL (/lunch-planner, /lunch-planner/meals).
  *
+ * Only admins edit the meal database and draw again (the integration checks
+ * it too); other users see the plan and the database read-only.
+ *
  * The plan part uses Home Assistant's own cards (tile, calendar). The meal
  * database is a small editor of its own, built from plain HTML styled with
  * Home Assistant's theme variables, talking to the integration over the
@@ -117,6 +120,9 @@ const STYLE = `
     border-top: 1px solid var(--divider-color, #e0e0e0); cursor: pointer;
   }
   .meal:hover { background: var(--secondary-background-color, #f5f5f5); }
+  .meal.read-only { cursor: default; }
+  .meal.read-only:hover { background: none; }
+  input.toggle:disabled { cursor: default; opacity: 0.6; }
   .meal.off .name, .meal.off .details { opacity: 0.5; }
   .meal-text { flex: 1; min-width: 0; }
   .name { font-size: 15px; }
@@ -207,8 +213,9 @@ function el(tag, attrs = {}, ...children) {
   const node = document.createElement(tag);
   for (const [key, value] of Object.entries(attrs)) {
     if (key === "class") node.className = value;
-    else if (key.startsWith("on")) node.addEventListener(key.slice(2), value);
-    else if (value === true) node.setAttribute(key, "");
+    else if (key.startsWith("on")) {
+      if (value) node.addEventListener(key.slice(2), value);
+    } else if (value === true) node.setAttribute(key, "");
     else if (value !== false && value != null) node.setAttribute(key, value);
   }
   for (const child of children.flat()) {
@@ -324,6 +331,10 @@ class LunchPlannerPanel extends HTMLElement {
     return new Intl.DateTimeFormat(lang, { month: "short" })
       .format(new Date(2026, month - 1, 1))
       .replace(".", "");
+  }
+
+  _isAdmin() {
+    return Boolean(this._hass && this._hass.user && this._hass.user.is_admin);
   }
 
   /** Entity name without the planner (device) name in front of it. */
@@ -450,7 +461,7 @@ class LunchPlannerPanel extends HTMLElement {
         calendar.layout = "grid";
       }
 
-      if (e.redraw) {
+      if (e.redraw && this._isAdmin()) {
         const actions = el("div", { class: "stack" });
         side.append(el("h2", {}, texts.actions), actions);
         // Tapping the tile or its icon asks first; holding does nothing.
@@ -508,6 +519,7 @@ class LunchPlannerPanel extends HTMLElement {
 
   _categoryCard(entryId, category, meals) {
     const texts = this._texts();
+    const admin = this._isAdmin();
     const card = el(
       "div",
       { class: "card" },
@@ -515,7 +527,9 @@ class LunchPlannerPanel extends HTMLElement {
         "div",
         { class: "card-header" },
         el("span", {}, texts.categories[category]),
-        el("button", { class: "text-button", onclick: () => this._openDialog(entryId, category, null) }, `+ ${texts.add}`),
+        admin
+          ? el("button", { class: "text-button", onclick: () => this._openDialog(entryId, category, null) }, `+ ${texts.add}`)
+          : null,
       ),
     );
     if (!meals.length) {
@@ -532,6 +546,7 @@ class LunchPlannerPanel extends HTMLElement {
         role: "switch",
         class: "toggle",
         checked: meal.active,
+        disabled: !admin,
         title: texts.draw,
         "aria-label": `${texts.draw}: ${meal.name}`,
         onclick: (ev) => ev.stopPropagation(),
@@ -540,7 +555,10 @@ class LunchPlannerPanel extends HTMLElement {
       card.appendChild(
         el(
           "div",
-          { class: `meal${meal.active ? "" : " off"}`, onclick: () => this._openDialog(entryId, category, meal) },
+          {
+            class: `meal${meal.active ? "" : " off"}${admin ? "" : " read-only"}`,
+            onclick: admin ? () => this._openDialog(entryId, category, meal) : null,
+          },
           el(
             "div",
             { class: "meal-text" },

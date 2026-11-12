@@ -14,6 +14,7 @@ from homeassistant.helpers import config_validation as cv, entity_registry as er
 from homeassistant.helpers.typing import ConfigType
 
 from . import websocket
+from .permissions import async_check_admin
 from .const import (
     ATTR_CONFIG_ENTRY_ID,
     ATTR_DATE,
@@ -93,12 +94,14 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     """Register the services."""
 
     async def redraw(call: ServiceCall) -> ServiceResponse:
+        await async_check_admin(hass, call.context)
         planner = _planner_for(hass, call)
         day: date | None = call.data.get(ATTR_DATE)
         drawn = await planner.async_redraw(day)
         return {"dates": [d.isoformat() for d in drawn]}
 
     async def add_meal(call: ServiceCall) -> None:
+        await async_check_admin(hass, call.context)
         planner = _planner_for(hass, call)
         start, end = call.data.get("season_from"), call.data.get("season_to")
         if (start is None) != (end is None):
@@ -116,6 +119,7 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
         )
 
     async def remove_meal(call: ServiceCall) -> None:
+        await async_check_admin(hass, call.context)
         planner = _planner_for(hass, call)
         meal = planner.find_by_name(call.data["category"], call.data["name"])
         if meal is None:

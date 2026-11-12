@@ -17,9 +17,9 @@ from pytest_homeassistant_custom_component.common import (
 
 from homeassistant.components.calendar import CalendarEntity, CalendarEvent
 from homeassistant.config_entries import ConfigEntryState
-from homeassistant.core import HomeAssistant
+from homeassistant.core import Context, HomeAssistant
 from homeassistant.data_entry_flow import FlowResultType
-from homeassistant.exceptions import ServiceValidationError
+from homeassistant.exceptions import ServiceValidationError, Unauthorized
 from homeassistant.helpers import entity_registry as er
 from homeassistant.setup import async_setup_component
 from homeassistant.util import dt as dt_util
@@ -314,6 +314,60 @@ async def test_websocket_meal_editing(hass_pl: HomeAssistant, hass_ws_client) ->
     assert not (await client.receive_json())["success"]
     await client.send_json_auto_id({"type": "lunch_planner/meals/subscribe", "entry_id": "nope"})
     assert not (await client.receive_json())["success"]
+
+
+async def test_only_admins_change_the_database_and_draw(
+    hass_pl: HomeAssistant,
+    hass_ws_client,
+    hass_admin_user,
+    hass_read_only_user,
+    hass_read_only_access_token: str,
+) -> None:
+    hass = hass_pl
+    entry = make_entry()
+    await setup_entry(hass, entry)
+    await fill_database(hass, entry)
+    planner = entry.runtime_data
+    button = entity(hass, entry, "button", "redraw")
+    user = Context(user_id=hass_read_only_user.id)
+    admin = Context(user_id=hass_admin_user.id)
+    calls = [
+        ("add_meal", {"category": "soup", "name": "Pomidorowa"}),
+        ("remove_meal", {"category": "soup", "name": "Grzybowa"}),
+        ("redraw", {}),
+    ]
+
+    for service, data in calls:
+        with pytest.raises(Unauthorized):
+            await hass.services.async_call(DOMAIN, service, data, blocking=True, context=user)
+    with pytest.raises(Unauthorized):
+        await hass.services.async_call(
+            "button", "press", {"entity_id": button}, blocking=True, context=user
+        )
+    assert sorted(m["name"] for m in planner.items["soup"]) == ["Grzybowa", "Kalafiorowa"]
+
+    for service, data in calls:
+        await hass.services.async_call(DOMAIN, service, data, blocking=True, context=admin)
+    await hass.services.async_call(
+        "button", "press", {"entity_id": button}, blocking=True, context=admin
+    )
+    assert sorted(m["name"] for m in planner.items["soup"]) == ["Kalafiorowa", "Pomidorowa"]
+
+    # In the panel a user who is not an admin sees the database but cannot change it.
+    client = await hass_ws_client(hass, hass_read_only_access_token)
+    await client.send_json_auto_id({"type": "lunch_planner/meals/subscribe", "entry_id": entry.entry_id})
+    assert (await client.receive_json())["success"]
+    assert len((await client.receive_json())["event"]["meals"]["soup"]) == 2
+    uid = planner.items["soup"][0]["uid"]
+    for message in (
+        {"type": "lunch_planner/meals/save", "category": "soup", "name": "Ogórkowa"},
+        {"type": "lunch_planner/meals/delete", "uid": uid},
+    ):
+        await client.send_json_auto_id({**message, "entry_id": entry.entry_id})
+        response = await client.receive_json()
+        assert not response["success"]
+        assert response["error"]["code"] == "unauthorized"
+    assert len(planner.items["soup"]) == 2
 
 
 async def test_migration_from_todo_lists(hass_pl: HomeAssistant, hass_storage) -> None:
