@@ -24,6 +24,12 @@ in behaviour, options, entities, actions or blueprints.
   with `add_meal` / `remove_meal`. The panel API
   (`lunch_planner/meals/subscribe|save|delete`) is subscription-only, so tools
   that read states or call services cannot list the meals.
+- **Only admins change the meal database or draw again.** HA has no
+  per-action or per-entity permissions, so every entry point checks it: the
+  panel's write commands use `websocket_api.require_admin`; actions and the
+  button call `permissions.async_check_admin` (a call without a user, i.e. an
+  automation, passes). The panel hides editing for other users, but that is
+  only convenience. Any new write path needs the same check and a test.
 - Internal option keys stay stable when labels change: rename the label in
   the translation files, not the key.
 - A lunch is locked from the start of the day its shopping list goes out;
