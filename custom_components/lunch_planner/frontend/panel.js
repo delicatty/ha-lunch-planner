@@ -82,7 +82,7 @@ const STYLE = `
   .tab:hover { opacity: 1; }
   .tab[aria-selected="true"] { opacity: 1; border-bottom-color: currentColor; }
   .tab:focus-visible { outline: 2px solid currentColor; outline-offset: -4px; }
-  .content { max-width: 1280px; margin: 0 auto; padding: 16px; box-sizing: border-box; }
+  .content { max-width: 1280px; margin: 0 auto; padding: 16px; box-sizing: border-box; container-type: inline-size; }
   h1 { font-size: 22px; font-weight: 500; margin: 8px 4px 4px; }
   h2 { font-size: 18px; font-weight: 500; margin: 24px 4px 12px; }
   h3 { font-size: 16px; font-weight: 500; margin: 20px 4px 8px; color: var(--secondary-text-color); }
@@ -169,8 +169,11 @@ const STYLE = `
   .radio input { accent-color: var(--primary-color); margin: 0; }
   .actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 4px; }
   .error { color: var(--error-color, #db4437); font-size: 13px; }
-  @media (max-width: 760px) {
+  /* One column when the panel itself is narrow, also with the sidebar open. */
+  @container (max-width: 720px) {
     .plan, .lists.two, .lists.three { grid-template-columns: 1fr; }
+  }
+  @media (max-width: 760px) {
     .content { padding: 8px; }
     .tabs { margin-left: 0; }
     .tab { padding: 0 12px; }
@@ -436,7 +439,15 @@ class LunchPlannerPanel extends HTMLElement {
         }
       }
       if (e.plan) {
-        this._card(helpers, { type: "calendar", entities: [e.plan], initial_view: "listWeek" }, calendarBox);
+        // As a sections-dashboard card with automatic height: the calendar is
+        // as tall as its content, not a fixed 400px with empty space under a
+        // short week, which would push the tiles down on a phone.
+        const calendar = this._card(
+          helpers,
+          { type: "calendar", entities: [e.plan], initial_view: "listWeek", grid_options: { rows: "auto" } },
+          calendarBox,
+        );
+        calendar.layout = "grid";
       }
 
       if (e.redraw) {
