@@ -141,7 +141,7 @@ const STYLE = `
     background: rgba(var(--rgb-primary-color, 3, 169, 244), 0.15); color: var(--primary-color);
     vertical-align: middle;
   }
-  .lunch { display: flex; gap: 16px; padding: 10px 16px; border-top: 1px solid var(--divider-color, #e0e0e0); }
+  .lunch { display: flex; align-items: center; gap: 16px; padding: 10px 16px; border-top: 1px solid var(--divider-color, #e0e0e0); }
   .lunch-day { flex: 0 0 7em; }
   .empty { padding: 12px 16px 16px; color: var(--secondary-text-color); font-size: 14px; border-top: 1px solid var(--divider-color, #e0e0e0); }
   /* A switch like Home Assistant's own, built from a checkbox. */
@@ -526,7 +526,6 @@ class LunchPlannerPanel extends HTMLElement {
     if (!box) return;
     const texts = this._texts();
     const lang = this._hass.language || "en";
-    const timeZone = this._hass.config && this._hass.config.time_zone;
     const now = Date.now();
     const lunches = (this._lunches[entryId] || []).filter(
       (lunch) => Date.parse(lunch.end) > now && Date.parse(lunch.start) < now + UPCOMING_MS,
@@ -535,7 +534,6 @@ class LunchPlannerPanel extends HTMLElement {
     const day = (iso) => new Date(`${iso}T12:00:00Z`);
     const weekday = new Intl.DateTimeFormat(lang, { weekday: "long", timeZone: "UTC" });
     const dateText = new Intl.DateTimeFormat(lang, { day: "numeric", month: "long", timeZone: "UTC" });
-    const clock = new Intl.DateTimeFormat(lang, { hour: "2-digit", minute: "2-digit", timeZone });
     const relative = new Intl.RelativeTimeFormat(lang, { numeric: "auto" });
     const today = day(this._today());
 
@@ -560,11 +558,6 @@ class LunchPlannerPanel extends HTMLElement {
               { class: "name" },
               lunch.meal,
               offset <= 1 ? el("span", { class: "chip" }, relative.format(offset, "day")) : null,
-            ),
-            el(
-              "div",
-              { class: "details" },
-              `${clock.format(new Date(lunch.start))}–${clock.format(new Date(lunch.end))}`,
             ),
           ),
         ),
