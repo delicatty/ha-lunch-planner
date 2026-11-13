@@ -289,11 +289,13 @@ async def test_websocket_plan_subscription(
     """The panel's list of upcoming lunches: from today on, also for non-admins,
     sent again after a draw."""
     hass = hass_pl
-    # Log in before moving the clock, while the access token is valid.
-    client = await hass_ws_client(hass, hass_read_only_access_token)
-    freezer.move_to(local(WEDNESDAY_NOON))
+    # Set up first: the client starts the HTTP server, after which the panel
+    # can no longer register its files. Then log in before moving the clock,
+    # while the access token is valid.
     entry = make_entry(lunch_time="12:30:00", lunch_duration=45)
     await setup_entry(hass, entry)
+    client = await hass_ws_client(hass, hass_read_only_access_token)
+    freezer.move_to(local(WEDNESDAY_NOON))
     await fill_database(hass, entry)
     planner = entry.runtime_data
     planner.plan["2026-11-10"] = {"date": "2026-11-10", "parts": [

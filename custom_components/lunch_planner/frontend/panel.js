@@ -96,7 +96,10 @@ const STYLE = `
   h2 { font-size: 18px; font-weight: 500; margin: 24px 4px 12px; }
   h3 { font-size: 16px; font-weight: 500; margin: 20px 4px 8px; color: var(--secondary-text-color); }
   .plan { display: grid; grid-template-columns: minmax(320px, 2fr) minmax(280px, 1fr); gap: 16px; align-items: start; margin-top: 8px; }
-  .stack { display: grid; gap: 8px; }
+  .stack { display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px; }
+  /* Grid items may shrink below their content: a tile with a long one-line
+     text (e.g. what to buy) would otherwise widen the panel past the screen. */
+  .plan > *, .stack > *, .lists > * { min-width: 0; }
   .side h2 { margin-top: 16px; }
   .meals > div > h3:first-child { margin-top: 8px; }
   .lists { display: grid; gap: 16px; align-items: start; }
@@ -139,7 +142,7 @@ const STYLE = `
     vertical-align: middle;
   }
   .lunch { display: flex; gap: 16px; padding: 10px 16px; border-top: 1px solid var(--divider-color, #e0e0e0); }
-  .lunch-day { flex: 0 0 9.5em; }
+  .lunch-day { flex: 0 0 7em; }
   .empty { padding: 12px 16px 16px; color: var(--secondary-text-color); font-size: 14px; border-top: 1px solid var(--divider-color, #e0e0e0); }
   /* A switch like Home Assistant's own, built from a checkbox. */
   input.toggle {
@@ -185,7 +188,7 @@ const STYLE = `
   .error { color: var(--error-color, #db4437); font-size: 13px; }
   /* One column when the panel itself is narrow, also with the sidebar open. */
   @container (max-width: 720px) {
-    .plan, .lists.two, .lists.three { grid-template-columns: 1fr; }
+    .plan, .lists.two, .lists.three { grid-template-columns: minmax(0, 1fr); }
   }
   @media (max-width: 760px) {
     .content { padding: 8px; }
