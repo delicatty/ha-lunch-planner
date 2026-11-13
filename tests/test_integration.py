@@ -282,6 +282,45 @@ async def test_add_meal_updates_by_name_and_remove_meal(hass_pl: HomeAssistant) 
         )
 
 
+async def test_websocket_plan_subscription(
+    hass_pl: HomeAssistant, hass_ws_client, hass_read_only_access_token: str,
+    freezer: FrozenDateTimeFactory,
+) -> None:
+    """The panel's list of upcoming lunches: from today on, also for non-admins,
+    sent again after a draw."""
+    hass = hass_pl
+    # Log in before moving the clock, while the access token is valid.
+    client = await hass_ws_client(hass, hass_read_only_access_token)
+    freezer.move_to(local(WEDNESDAY_NOON))
+    entry = make_entry(lunch_time="12:30:00", lunch_duration=45)
+    await setup_entry(hass, entry)
+    await fill_database(hass, entry)
+    planner = entry.runtime_data
+    planner.plan["2026-11-10"] = {"date": "2026-11-10", "parts": [
+        {"category": "soup", "uid": "x", "name": "Grzybowa", "ingredients": ["Grzybowa"]}
+    ]}
+    planner.plan["2026-11-11"] = {"date": "2026-11-11", "parts": [
+        {"category": "dish", "uid": "y", "name": "Spaghetti", "ingredients": ["Spaghetti"]}
+    ]}
+
+    await client.send_json_auto_id({"type": "lunch_planner/plan/subscribe", "entry_id": entry.entry_id})
+    assert (await client.receive_json())["success"]
+    lunches = (await client.receive_json())["event"]["lunches"]
+    assert lunches == [{
+        "date": "2026-11-11",
+        "start": "2026-11-11T12:30:00+01:00",
+        "end": "2026-11-11T13:15:00+01:00",
+        "meal": "Spaghetti",
+    }]
+
+    await hass.services.async_call(DOMAIN, "redraw", {}, blocking=True)
+    lunches = (await client.receive_json())["event"]["lunches"]
+    assert [lunch["date"] for lunch in lunches] == ["2026-11-11", "2026-11-12", "2026-11-13"]
+
+    await client.send_json_auto_id({"type": "lunch_planner/plan/subscribe", "entry_id": "nope"})
+    assert not (await client.receive_json())["success"]
+
+
 async def test_websocket_meal_editing(hass_pl: HomeAssistant, hass_ws_client) -> None:
     hass = hass_pl
     entry = make_entry()

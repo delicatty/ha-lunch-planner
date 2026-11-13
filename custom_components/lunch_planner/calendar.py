@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import date, datetime, time, timedelta
+from datetime import datetime
 from typing import Any
 
 from homeassistant.components.calendar import CalendarEntity, CalendarEvent
@@ -11,7 +11,6 @@ from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 from homeassistant.util import dt as dt_util
 
 from . import LunchPlannerConfigEntry
-from .const import CONF_LUNCH_DURATION, CONF_LUNCH_TIME
 from .entity import LunchPlannerEntity
 from .manager import LunchPlanner
 
@@ -24,14 +23,8 @@ async def async_setup_entry(
     async_add_entities([PlanCalendar(entry.runtime_data, "plan")])
 
 
-def _lunch_start(planner: LunchPlanner, day: date) -> datetime:
-    """The lunch's start in Home Assistant's time zone."""
-    hour, minute, *_ = (int(p) for p in str(planner.option(CONF_LUNCH_TIME)).split(":"))
-    return datetime.combine(day, time(hour, minute), tzinfo=dt_util.get_default_time_zone())
-
-
 def _event(planner: LunchPlanner, meal: dict[str, Any]) -> CalendarEvent:
-    start = _lunch_start(planner, date.fromisoformat(meal["date"]))
+    start, end = planner.lunch_times(meal)
     description = "\n".join(
         f"{p['name']}: {', '.join(p['ingredients'])}"
         if p.get("ingredients") and p["ingredients"] != [p["name"]]
@@ -40,7 +33,7 @@ def _event(planner: LunchPlanner, meal: dict[str, Any]) -> CalendarEvent:
     )
     return CalendarEvent(
         start=start,
-        end=start + timedelta(minutes=int(planner.option(CONF_LUNCH_DURATION))),
+        end=end,
         summary=planner.event_title(meal),
         description=description,
         uid=meal["date"],

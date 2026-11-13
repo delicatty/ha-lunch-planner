@@ -23,7 +23,10 @@ in behaviour, options, entities, actions or blueprints.
 - **The meal database is in the integration's store**, edited in the panel or
   with `add_meal` / `remove_meal`. The panel API
   (`lunch_planner/meals/subscribe|save|delete`) is subscription-only, so tools
-  that read states or call services cannot list the meals.
+  that read states or call services cannot list the meals. The panel's plan
+  list comes from `lunch_planner/plan/subscribe` (lunches from today on); it
+  replaced HA's calendar card, which always shows 7 days from today, past
+  lunches included.
 - **Only admins change the meal database or draw again.** HA has no
   per-action or per-entity permissions, so every entry point checks it: the
   panel's write commands use `websocket_api.require_admin`; actions and the

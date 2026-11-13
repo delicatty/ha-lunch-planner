@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, time, timedelta
 import logging
 import random
 from typing import Any
@@ -25,6 +25,8 @@ from .const import (
     CONF_DRAW_TIME,
     CONF_DRAW_WEEKDAY,
     CONF_HOLIDAY_SHOPS_CLOSED,
+    CONF_LUNCH_DURATION,
+    CONF_LUNCH_TIME,
     CONF_MEAL_MODE,
     CONF_MEAL_SCHEDULE,
     CONF_NO_SHOPPING_DAYS,
@@ -552,6 +554,16 @@ class LunchPlanner:
         return planner.meal_text(
             meal, self.texts["soup_format"], self.texts["soup_word"], capitalize
         )
+
+    def lunch_times(self, meal: dict[str, Any]) -> tuple[datetime, datetime]:
+        """Start and end of a lunch, in Home Assistant's time zone."""
+        hour, minute, _ = _parse_time(str(self.option(CONF_LUNCH_TIME)))
+        start = datetime.combine(
+            date.fromisoformat(meal["date"]),
+            time(hour, minute),
+            tzinfo=dt_util.get_default_time_zone(),
+        )
+        return start, start + timedelta(minutes=int(self.option(CONF_LUNCH_DURATION)))
 
     def event_title(self, meal: dict[str, Any]) -> str:
         """Calendar title, e.g. ``Obiad: zupa grzybowa``."""

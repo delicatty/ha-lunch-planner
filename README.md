@@ -17,8 +17,8 @@ adding to a shopping list are done by automations; two ready
 ## Features
 
 - A **Lunch planner panel** in the sidebar, ready right after installation,
-  has two tabs: **Plan** (the plan calendar, today's and tomorrow's lunch,
-  what to buy next) and **Meal database** (the meal editor). **Draw upcoming lunches again** sits in an *Actions* section under the plan
+  has two tabs: **Plan** (the lunches of the next 7 days, from the next one not
+  over yet; today's and tomorrow's lunch, what to buy next) and **Meal database** (the meal editor). **Draw upcoming lunches again** sits in an *Actions* section under the plan
   tiles and asks for confirmation. In the meal editor Ctrl+Enter saves.
 - Only Home Assistant admins change the meal database and draw lunches again
   (in the panel, with the button or with the actions). Other users see the
@@ -185,7 +185,8 @@ części: **składnika głównego** (kotlet), **dodatku skrobiowego** (ziemniaki
 i **surówki lub warzyw**.
 
 - Po instalacji w pasku bocznym pojawia się panel z dwiema zakładkami:
-  **Plan** (kalendarz planu, obiad na dziś i jutro, co kupić) i **Baza posiłków**
+  **Plan** (obiady na najbliższe 7 dni, od najbliższego, który jeszcze się nie
+  skończył; obiad na dziś i jutro, co kupić) i **Baza posiłków**
   (edytor bazy). Przycisk „Losuj ponownie nadchodzące
   obiady” jest w sekcji „Akcje” pod kafelkami planu i pyta o potwierdzenie. W oknie
   edycji pozycji Ctrl+Enter zapisuje.

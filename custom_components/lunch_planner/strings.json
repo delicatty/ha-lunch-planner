@@ -140,6 +140,8 @@
     "panel": {
       "options": {
         "plan": "Plan",
+        "upcoming": "Upcoming lunches",
+        "no_lunches": "No lunches planned yet.",
         "database": "Meal database",
         "single": "Single dishes",
         "composed": "Composed main courses",

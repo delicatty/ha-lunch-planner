@@ -7,16 +7,19 @@
  * Only admins edit the meal database and draw again (the integration checks
  * it too); other users see the plan and the database read-only.
  *
- * The plan part uses Home Assistant's own cards (tile, calendar). The meal
- * database is a small editor of its own, built from plain HTML styled with
- * Home Assistant's theme variables, talking to the integration over the
- * lunch_planner/meals/* WebSocket commands.
+ * The plan part is a list of the upcoming lunches and Home Assistant's own
+ * tile cards. The list and the meal database editor are built from plain HTML
+ * styled with Home Assistant's theme variables, and talk to the integration
+ * over the lunch_planner/plan/subscribe and lunch_planner/meals/* WebSocket
+ * commands.
  */
 
 // Texts come from translations/*.json (selector "panel"), loaded with
 // hass.loadBackendTranslation. Property name -> translation key.
 const TEXT_KEYS = {
   plan: "plan",
+  upcoming: "upcoming",
+  noLunches: "no_lunches",
   actions: "actions",
   database: "database",
   single: "single",
@@ -49,6 +52,9 @@ const TABS = [
   ["database", "/meals"],
 ];
 const CATEGORIES = ["soup", "dish", "protein", "starch", "salad"];
+// The list of upcoming lunches looks this far ahead.
+const UPCOMING_MS = 7 * 24 * 60 * 60 * 1000;
+const DAY_MS = 24 * 60 * 60 * 1000;
 
 const GROUPS = [
   ["single", ["soup", "dish"], "two"],
@@ -132,6 +138,8 @@ const STYLE = `
     background: rgba(var(--rgb-primary-color, 3, 169, 244), 0.15); color: var(--primary-color);
     vertical-align: middle;
   }
+  .lunch { display: flex; gap: 16px; padding: 10px 16px; border-top: 1px solid var(--divider-color, #e0e0e0); }
+  .lunch-day { flex: 0 0 9.5em; }
   .empty { padding: 12px 16px 16px; color: var(--secondary-text-color); font-size: 14px; border-top: 1px solid var(--divider-color, #e0e0e0); }
   /* A switch like Home Assistant's own, built from a checkbox. */
   input.toggle {
@@ -235,6 +243,9 @@ class LunchPlannerPanel extends HTMLElement {
     this._building = false;
     this._meals = {}; // entry_id -> {category: [meal]}
     this._mealBoxes = {}; // entry_id -> element holding the meal lists
+    this._lunches = {}; // entry_id -> [{date, start, end, meal}] from today on
+    this._lunchBoxes = {}; // entry_id -> element holding the upcoming lunches
+    this._timer = null;
     this._unsubs = [];
     this._tab = "plan";
     this._tabButtons = {};
@@ -361,7 +372,19 @@ class LunchPlannerPanel extends HTMLElement {
 
   async _subscribe() {
     this._unsubscribe();
+    // A lunch leaves the list once it is over.
+    this._timer = setInterval(() => {
+      for (const entryId of Object.keys(this._lunchBoxes)) this._renderLunches(entryId);
+    }, 60 * 1000);
     for (const planner of this._config.planners || []) {
+      const unsubPlan = await this._hass.connection.subscribeMessage(
+        (message) => {
+          this._lunches[planner.entry_id] = message.lunches;
+          this._renderLunches(planner.entry_id);
+        },
+        { type: "lunch_planner/plan/subscribe", entry_id: planner.entry_id },
+      );
+      this._unsubs.push(unsubPlan);
       const unsub = await this._hass.connection.subscribeMessage(
         (message) => {
           this._meals[planner.entry_id] = message.meals;
@@ -374,6 +397,8 @@ class LunchPlannerPanel extends HTMLElement {
   }
 
   _unsubscribe() {
+    if (this._timer) clearInterval(this._timer);
+    this._timer = null;
     for (const unsub of this._unsubs) {
       try {
         unsub();
@@ -398,6 +423,7 @@ class LunchPlannerPanel extends HTMLElement {
     root.innerHTML = "";
     this._cards = [];
     this._mealBoxes = {};
+    this._lunchBoxes = {};
 
     root.appendChild(el("style", {}, STYLE));
 
@@ -437,29 +463,20 @@ class LunchPlannerPanel extends HTMLElement {
         mealsPage.appendChild(el("h1", {}, planner.title));
       }
 
-      // The calendar, and next to it (under it on a phone) the plan tiles
+      // The upcoming lunches, and next to them (under them on a phone) the plan tiles
       // with the actions right under them.
       const stack = el("div", { class: "stack" });
       const side = el("div", { class: "side" }, stack);
-      const calendarBox = el("div");
-      planPage.appendChild(el("div", { class: "plan" }, calendarBox, side));
+      const lunchBox = el("div");
+      planPage.appendChild(el("div", { class: "plan" }, lunchBox, side));
 
       for (const key of ["today", "tomorrow", "next_shopping", "to_buy"]) {
         if (e[key]) {
           this._card(helpers, { type: "tile", entity: e[key], name: this._name(e[key], planner.title) }, stack);
         }
       }
-      if (e.plan) {
-        // As a sections-dashboard card with automatic height: the calendar is
-        // as tall as its content, not a fixed 400px with empty space under a
-        // short week, which would push the tiles down on a phone.
-        const calendar = this._card(
-          helpers,
-          { type: "calendar", entities: [e.plan], initial_view: "listWeek", grid_options: { rows: "auto" } },
-          calendarBox,
-        );
-        calendar.layout = "grid";
-      }
+      this._lunchBoxes[planner.entry_id] = lunchBox;
+      this._renderLunches(planner.entry_id);
 
       if (e.redraw && this._isAdmin()) {
         const actions = el("div", { class: "stack" });
@@ -493,6 +510,65 @@ class LunchPlannerPanel extends HTMLElement {
       this._renderMeals(planner.entry_id);
     }
     this._showTab();
+  }
+
+  /** Today's date (YYYY-MM-DD) in Home Assistant's time zone. */
+  _today() {
+    const timeZone = this._hass.config && this._hass.config.time_zone;
+    return new Intl.DateTimeFormat("en-CA", { timeZone }).format(new Date());
+  }
+
+  _renderLunches(entryId) {
+    const box = this._lunchBoxes[entryId];
+    if (!box) return;
+    const texts = this._texts();
+    const lang = this._hass.language || "en";
+    const timeZone = this._hass.config && this._hass.config.time_zone;
+    const now = Date.now();
+    const lunches = (this._lunches[entryId] || []).filter(
+      (lunch) => Date.parse(lunch.end) > now && Date.parse(lunch.start) < now + UPCOMING_MS,
+    );
+    // Dates are plain days: format them at noon UTC, so no time zone moves them.
+    const day = (iso) => new Date(`${iso}T12:00:00Z`);
+    const weekday = new Intl.DateTimeFormat(lang, { weekday: "long", timeZone: "UTC" });
+    const dateText = new Intl.DateTimeFormat(lang, { day: "numeric", month: "long", timeZone: "UTC" });
+    const clock = new Intl.DateTimeFormat(lang, { hour: "2-digit", minute: "2-digit", timeZone });
+    const relative = new Intl.RelativeTimeFormat(lang, { numeric: "auto" });
+    const today = day(this._today());
+
+    const card = el("div", { class: "card" }, el("div", { class: "card-header" }, el("span", {}, texts.upcoming)));
+    for (const lunch of lunches) {
+      const offset = Math.round((day(lunch.date) - today) / DAY_MS);
+      card.appendChild(
+        el(
+          "div",
+          { class: "lunch" },
+          el(
+            "div",
+            { class: "lunch-day" },
+            el("div", { class: "name" }, weekday.format(day(lunch.date))),
+            el("div", { class: "details" }, dateText.format(day(lunch.date))),
+          ),
+          el(
+            "div",
+            { class: "meal-text" },
+            el(
+              "div",
+              { class: "name" },
+              lunch.meal,
+              offset <= 1 ? el("span", { class: "chip" }, relative.format(offset, "day")) : null,
+            ),
+            el(
+              "div",
+              { class: "details" },
+              `${clock.format(new Date(lunch.start))}–${clock.format(new Date(lunch.end))}`,
+            ),
+          ),
+        ),
+      );
+    }
+    if (!lunches.length) card.appendChild(el("div", { class: "empty" }, texts.noLunches));
+    box.replaceChildren(card);
   }
 
   _renderMeals(entryId) {

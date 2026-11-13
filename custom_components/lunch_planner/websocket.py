@@ -1,4 +1,4 @@
-"""WebSocket commands used by the panel to show and edit the meal database."""
+"""WebSocket commands used by the panel: the upcoming lunches and the meal database."""
 
 from __future__ import annotations
 
@@ -10,6 +10,7 @@ from homeassistant.components import websocket_api
 from homeassistant.config_entries import ConfigEntryState
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.exceptions import HomeAssistantError
+from homeassistant.util import dt as dt_util
 
 from .const import CATEGORIES, DOMAIN
 from .manager import LunchPlanner
@@ -20,6 +21,7 @@ _MONTH = vol.All(vol.Coerce(int), vol.Range(min=1, max=12))
 @callback
 def async_register(hass: HomeAssistant) -> None:
     websocket_api.async_register_command(hass, ws_subscribe)
+    websocket_api.async_register_command(hass, ws_plan_subscribe)
     websocket_api.async_register_command(hass, ws_save)
     websocket_api.async_register_command(hass, ws_delete)
 
@@ -47,6 +49,42 @@ def ws_subscribe(hass: HomeAssistant, connection, msg: dict[str, Any]) -> None:
         connection.send_message(
             websocket_api.event_message(msg["id"], {"meals": planner.items})
         )
+
+    connection.subscriptions[msg["id"]] = planner.async_add_listener(send)
+    connection.send_result(msg["id"])
+    send()
+
+
+@websocket_api.websocket_command(
+    {vol.Required("type"): f"{DOMAIN}/plan/subscribe", vol.Required("entry_id"): str}
+)
+@callback
+def ws_plan_subscribe(hass: HomeAssistant, connection, msg: dict[str, Any]) -> None:
+    """Send the lunches from today on, now and after every change.
+
+    The panel lists the upcoming ones; it drops a lunch once it is over.
+    """
+    planner = _planner(hass, connection, msg)
+    if planner is None:
+        return
+
+    @callback
+    def send() -> None:
+        today = dt_util.now().date().isoformat()
+        lunches = []
+        for iso, meal in sorted(planner.plan.items()):
+            if iso < today:
+                continue
+            start, end = planner.lunch_times(meal)
+            lunches.append(
+                {
+                    "date": iso,
+                    "start": start.isoformat(),
+                    "end": end.isoformat(),
+                    "meal": planner.describe(meal),
+                }
+            )
+        connection.send_message(websocket_api.event_message(msg["id"], {"lunches": lunches}))
 
     connection.subscriptions[msg["id"]] = planner.async_add_listener(send)
     connection.send_result(msg["id"])
