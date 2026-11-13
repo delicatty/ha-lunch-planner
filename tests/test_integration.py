@@ -472,6 +472,34 @@ async def test_weekly_draw_event_lists_the_whole_week(
     assert planner.plan["2026-11-16"] == monday
 
 
+async def test_start_waits_for_the_weekly_draw(
+    hass_pl: HomeAssistant, freezer: FrozenDateTimeFactory
+) -> None:
+    """A start on Friday evening leaves the next week to Saturday's draw;
+    a start on Sunday, after a missed draw, plans the next week at once."""
+    hass = hass_pl
+    freezer.move_to(local("2026-11-13 18:00:00"))  # Friday
+    entry = make_entry()
+    await setup_entry(hass, entry)
+    await fill_database(hass, entry)
+    planner = entry.runtime_data
+    planner.plan.clear()
+    events = capture_plan_events(hass)
+
+    planner.async_ensure_plan()
+    await hass.async_block_till_done()
+    assert planner.plan == {}
+    assert events == []
+
+    freezer.move_to(local("2026-11-15 10:00:00"))  # Sunday; Saturday's draw was missed
+    planner.async_ensure_plan()
+    await hass.async_block_till_done()
+    assert sorted(planner.plan) == [
+        "2026-11-16", "2026-11-17", "2026-11-18", "2026-11-19", "2026-11-20"
+    ]
+    assert [e.data["reason"] for e in events] == ["first"]
+
+
 async def test_shopping_day_lock_and_to_buy_sensor(
     hass_pl: HomeAssistant, freezer: FrozenDateTimeFactory
 ) -> None:

@@ -463,14 +463,29 @@ class LunchPlanner:
             days = self._next_week()
         return self._draw(days, REASON_REDRAW)
 
+    def _next_weekly_draw(self) -> datetime:
+        """When the weekly draw plans the next week: still ahead, or missed."""
+        start = planner.next_week_start(self.today(), self.week_start)
+        draw_weekday = WEEKDAYS.index(self.option(CONF_DRAW_WEEKDAY))
+        day = start - timedelta(days=7 - (draw_weekday - start.weekday()) % 7)
+        hour, minute, second = _parse_time(self.option(CONF_DRAW_TIME))
+        return dt_util.start_of_local_day(day).replace(hour=hour, minute=minute, second=second)
+
     @callback
     def async_ensure_plan(self) -> None:
-        """Draw the next meal days when nothing is planned ahead (first start)."""
+        """Draw the next meal days when nothing is planned ahead.
+
+        On the first start, or after Home Assistant was off at the weekly draw.
+        The next week waits for its weekly draw while that is still ahead;
+        lunches whose shopping list is due before it are drawn on their own.
+        """
         today = self.today()
         if any(date.fromisoformat(iso) > today for iso in self.plan):
             return
         days = self._rest_of_week()
         if not [d for d in days if not self.is_locked(d)]:
+            if dt_util.now() < self._next_weekly_draw():
+                return
             days = self._next_week()
         self._draw(days, REASON_FIRST)
 

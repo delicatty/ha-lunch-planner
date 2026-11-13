@@ -85,6 +85,10 @@ Best set the weekly draw before the shopping for the first lunch of the week.
 A lunch whose shopping comes before the draw (e.g. Monday's, bought on
 Saturday) is drawn on its own at midnight before its shopping day.
 
+On the first start, and after Home Assistant was off at the weekly draw, the
+rest of the week, or else the next week, is drawn right away. A start before
+the weekly draw (e.g. on Friday evening) leaves the next week to it.
+
 ## Blueprints
 
 | Blueprint | What it does | Import |
@@ -218,6 +222,10 @@ i **surówki lub warzyw**.
   w sobotę. Gdy wypadłoby to 3 dni lub więcej przed obiadem (np. po
   Wielkanocy), kupujesz go rano w dniu obiadu, a lista przychodzi wieczorem
   dzień wcześniej. Od początku dnia, w którym wychodzi lista, obiad jest ustalony.
+- Przy pierwszym uruchomieniu i gdy Home Assistant był wyłączony w czasie
+  losowania, reszta tygodnia (albo następny tydzień) losuje się od razu.
+  Uruchomienie przed losowaniem tygodniowym (np. w piątek wieczorem) zostawia
+  następny tydzień temu losowaniu.
 - Powiadomienia i dopisywanie do listy zakupów robią automatyzacje: gotowe
   blueprinty „Shopping list” i „Weekly plan” zaimportujesz przyciskami
   w tabeli [Blueprints](#blueprints). Ich teksty wpisujesz po polsku.

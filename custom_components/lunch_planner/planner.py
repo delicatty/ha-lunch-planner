@@ -435,13 +435,18 @@ def _days_to_next_week(today: date, week_start: int) -> int:
     return (week_start - today.weekday()) % 7 or 7
 
 
+def next_week_start(today: date, week_start: int = 0) -> date:
+    """First ``week_start`` day after ``today`` (0 Monday ... 6 Sunday)."""
+    return today + timedelta(days=_days_to_next_week(today, week_start))
+
+
 def next_week_days(today: date, meal_weekdays: Iterable[int], week_start: int = 0) -> list[date]:
     """Meal days of the week that starts on the first ``week_start`` day after ``today``.
 
     ``week_start`` is a weekday number: 0 Monday ... 6 Sunday.
     """
     weekdays = set(meal_weekdays)
-    start = today + timedelta(days=_days_to_next_week(today, week_start))
+    start = next_week_start(today, week_start)
     days = [start + timedelta(days=i) for i in range(7)]
     return [d for d in days if d.weekday() in weekdays]
 
