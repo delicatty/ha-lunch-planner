@@ -31,7 +31,9 @@ adding to a shopping list are done by automations; two ready
   switched off, it stays in the database but is not drawn.
 - A weekly draw plans the next week. Within a week nothing repeats as long as
   the database allows it, nothing repeats on two days in a row, and (optionally)
-  last week's meals are avoided.
+  last week's meals are avoided. Lunches already drawn for that week (e.g.
+  with the redraw button) stay: the weekly draw only fills in the missing
+  days, and still sends the plan.
 - What a lunch is: **one course** (soup or a main course), **two courses**
   (soup and a main course), soup only, or main course only.
 - With one course you choose how many lunches a week are soup, and the
@@ -139,7 +141,8 @@ them by their unique IDs.
   `season_from`/`season_to`, `active`), or change the one with that name.
 - `lunch_planner.remove_meal` – remove a meal by `category` and `name`.
 - Event `lunch_planner_plan_updated` after every draw, with `entry_id`,
-  `reason` (`weekly`, `redraw`, `missing`, `first`), `drawn` (dates),
+  `reason` (`weekly`, `redraw`, `missing`, `first`), `drawn` (dates; empty
+  for a weekly draw of a week drawn earlier),
   `meals` (every planned day from tomorrow to the end of that week: `date`,
   `label`, `meal`, `shopping_items`) and `summary` (one line per lunch).
 
@@ -210,7 +213,9 @@ i **surówki lub warzyw**.
 - Losowanie raz w tygodniu (domyślnie sobota 9:00) planuje następny tydzień
   (pierwszy dzień tygodnia ustawiasz, domyślnie wynika z kraju w ustawieniach
   Home Assistanta), bez powtórek w tygodniu i dzień po dniu, a jeśli
-  się da, także bez dań z poprzedniego tygodnia.
+  się da, także bez dań z poprzedniego tygodnia. Obiady wylosowane na ten
+  tydzień wcześniej (np. przyciskiem) zostają: losowanie uzupełnia tylko
+  brakujące dni i wysyła plan.
 - Dni robocze ustawiasz sama (domyślnie pn–pt); weekendy to pozostałe dni.
 - Dni wolne: w dzień z wydarzeniem całodniowym w wybranym kalendarzu nie ma
   obiadu, np. święta z wbudowanej integracji **Holiday** albo urlop we własnym

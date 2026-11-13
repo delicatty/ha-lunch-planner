@@ -472,6 +472,40 @@ async def test_weekly_draw_event_lists_the_whole_week(
     assert planner.plan["2026-11-16"] == monday
 
 
+async def test_weekly_draw_keeps_a_week_drawn_earlier(
+    hass_pl: HomeAssistant, freezer: FrozenDateTimeFactory
+) -> None:
+    """The week was drawn on Friday: Saturday's draw changes nothing and
+    sends the plan; a lunch dropped in the meantime is filled in."""
+    hass = hass_pl
+    freezer.move_to(local("2026-11-13 18:00:00"))  # Friday
+    entry = make_entry()
+    await setup_entry(hass, entry)
+    await fill_database(hass, entry)
+    planner = entry.runtime_data
+    await hass.services.async_call(DOMAIN, "redraw", {}, blocking=True)
+    week = [f"2026-11-{d}" for d in range(16, 21)]
+    assert sorted(planner.plan) == week
+    before = dict(planner.plan)
+    events = capture_plan_events(hass)
+
+    freezer.move_to(local("2026-11-14 09:00:00"))
+    async_fire_time_changed(hass)
+    await hass.async_block_till_done()
+    assert planner.plan == before
+    weekly = events[-1].data
+    assert weekly["reason"] == "weekly"
+    assert weekly["drawn"] == []
+    assert [m["date"] for m in weekly["meals"]] == week
+    assert weekly["summary"].count("\n") == 4
+
+    del planner.plan["2026-11-18"]
+    assert planner.async_weekly_draw() == [dt_util.parse_date("2026-11-18")]
+    assert {iso: planner.plan[iso] for iso in before if iso != "2026-11-18"} == {
+        iso: meal for iso, meal in before.items() if iso != "2026-11-18"
+    }
+
+
 async def test_start_waits_for_the_weekly_draw(
     hass_pl: HomeAssistant, freezer: FrozenDateTimeFactory
 ) -> None:

@@ -401,15 +401,16 @@ class LunchPlanner:
         self._changed()
         return days
 
-    def _plan_event(self, drawn: list[date], reason: str) -> dict[str, Any]:
+    def _plan_event(
+        self, drawn: list[date], reason: str, week_of: date | None = None
+    ) -> dict[str, Any]:
         """Event data, ready to be put into a notification by an automation.
 
         ``meals`` and ``summary`` cover every planned day from tomorrow to the
-        end of the last drawn day's week, so a weekly draw also lists the
-        week's first lunch when it was drawn earlier because its shopping day
-        had come.
+        end of the last drawn day's week (or of ``week_of``'s week), so a
+        weekly draw also lists the lunches of the week drawn earlier.
         """
-        week_end = planner.week_end(max(drawn), self.week_start)
+        week_end = planner.week_end(max(drawn) if drawn else week_of, self.week_start)
         today = self.today()
         meals = [
             {
@@ -491,7 +492,20 @@ class LunchPlanner:
 
     @callback
     def async_weekly_draw(self) -> list[date]:
-        return self._draw(self._next_week(), REASON_WEEKLY)
+        """Fill in the next week; lunches drawn earlier for it stay.
+
+        The event goes out also when nothing was left to draw, so the weekly
+        plan is sent at the usual time.
+        """
+        days = self._next_week()
+        if not days:
+            return []
+        drawn = self._draw([d for d in days if d.isoformat() not in self.plan], REASON_WEEKLY)
+        if not drawn:
+            self.hass.bus.async_fire(
+                EVENT_PLAN_UPDATED, self._plan_event([], REASON_WEEKLY, week_of=days[0])
+            )
+        return drawn
 
     @callback
     def _remove_days_off(self) -> None:
