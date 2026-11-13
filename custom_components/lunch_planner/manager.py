@@ -28,7 +28,8 @@ from .const import (
     CONF_MEAL_MODE,
     CONF_MEAL_SCHEDULE,
     CONF_NO_SHOPPING_DAYS,
-    CONF_SOUP_SHARE,
+    CONF_SOUP_DAYS,
+    CONF_SOUP_WEEKDAYS,
     CONF_WEEK_START,
     CONF_WORKDAYS,
     DAYS_OFF_AHEAD,
@@ -195,8 +196,11 @@ class LunchPlanner:
     def planner_options(self) -> planner.PlannerOptions:
         return planner.PlannerOptions(
             meal_mode=self.option(CONF_MEAL_MODE),
-            soup_share=int(self.option(CONF_SOUP_SHARE)),
+            soup_days=int(self.option(CONF_SOUP_DAYS)),
+            soup_weekdays=frozenset(_weekday_numbers(self.option(CONF_SOUP_WEEKDAYS))),
             avoid_previous_week=bool(self.option(CONF_AVOID_PREVIOUS_WEEK)),
+            meal_weekdays=frozenset(self.meal_weekdays),
+            week_start=self.week_start,
         )
 
     @property

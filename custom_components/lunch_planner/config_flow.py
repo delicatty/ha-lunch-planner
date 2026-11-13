@@ -23,13 +23,15 @@ from .const import (
     CONF_MEAL_SCHEDULE,
     CONF_NO_SHOPPING_DAYS,
     CONF_SHOW_PANEL,
-    CONF_SOUP_SHARE,
+    CONF_SOUP_DAYS,
+    CONF_SOUP_WEEKDAYS,
     CONF_WEEK_START,
     CONF_WORKDAYS,
     DEFAULT_OPTIONS,
     DOMAIN,
     MEAL_MODES,
     MEAL_SCHEDULES,
+    MODE_SOUP_OR_MAIN,
     SCHEDULE_EVERY_DAY,
     SCHEDULE_WEEKENDS,
     WEEKDAYS,
@@ -85,12 +87,12 @@ def _options_schema(
                     mode=selector.SelectSelectorMode.LIST,
                 )
             ),
-            vol.Required(CONF_SOUP_SHARE, **default(CONF_SOUP_SHARE)): selector.NumberSelector(
+            vol.Required(CONF_SOUP_DAYS, **default(CONF_SOUP_DAYS)): selector.NumberSelector(
                 selector.NumberSelectorConfig(
-                    min=0, max=100, step=10, unit_of_measurement="%",
-                    mode=selector.NumberSelectorMode.SLIDER,
+                    min=0, max=7, step=1, mode=selector.NumberSelectorMode.SLIDER
                 )
             ),
+            vol.Required(CONF_SOUP_WEEKDAYS, **default(CONF_SOUP_WEEKDAYS)): _weekday_selector(True),
             vol.Required(
                 CONF_AVOID_PREVIOUS_WEEK, **default(CONF_AVOID_PREVIOUS_WEEK)
             ): selector.BooleanSelector(),
@@ -126,7 +128,7 @@ def _options_schema(
 
 def _clean(user_input: dict[str, Any]) -> dict[str, Any]:
     data = dict(user_input)
-    data[CONF_SOUP_SHARE] = int(data[CONF_SOUP_SHARE])
+    data[CONF_SOUP_DAYS] = int(data[CONF_SOUP_DAYS])
     data[CONF_LUNCH_DURATION] = int(data[CONF_LUNCH_DURATION])
     data.setdefault(CONF_DAYS_OFF_CALENDARS, [])
     return data
@@ -172,6 +174,13 @@ class LunchPlannerConfigFlow(ConfigFlow, domain=DOMAIN):
         return LunchPlannerOptionsFlow()
 
 
+def _lunch_days_a_week(schedule: str | None, workdays: list[str]) -> int:
+    if schedule == SCHEDULE_EVERY_DAY:
+        return 7
+    count = len(set(workdays) & set(WEEKDAYS))
+    return 7 - count if schedule == SCHEDULE_WEEKENDS else count
+
+
 def _validate(user_input: dict[str, Any]) -> dict[str, str]:
     errors: dict[str, str] = {}
     schedule = user_input.get(CONF_MEAL_SCHEDULE)
@@ -180,6 +189,12 @@ def _validate(user_input: dict[str, Any]) -> dict[str, str]:
         errors[CONF_WORKDAYS] = "no_workdays"
     elif schedule == SCHEDULE_WEEKENDS and len(set(workdays)) >= 7:
         errors[CONF_WORKDAYS] = "no_weekend_days"
+    if (
+        not errors
+        and user_input.get(CONF_MEAL_MODE) == MODE_SOUP_OR_MAIN
+        and int(user_input.get(CONF_SOUP_DAYS, 0)) > _lunch_days_a_week(schedule, workdays)
+    ):
+        errors[CONF_SOUP_DAYS] = "too_many_soup_days"
     if len(user_input.get(CONF_NO_SHOPPING_DAYS, [])) >= 7:
         errors[CONF_NO_SHOPPING_DAYS] = "no_shopping_day_left"
     return errors

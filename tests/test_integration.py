@@ -95,12 +95,19 @@ async def test_config_flow(hass_pl: HomeAssistant) -> None:
     result = await hass.config_entries.flow.async_configure(result["flow_id"], every_day_worked)
     assert result["errors"] == {"workdays": "no_weekend_days"}
 
+    # Weekends have 2 lunch days: 3 soups do not fit.
+    weekend_soups = {**DEFAULT_OPTIONS, "meal_schedule": "weekends", "soup_days": 3.0}
+    result = await hass.config_entries.flow.async_configure(result["flow_id"], weekend_soups)
+    assert result["errors"] == {"soup_days": "too_many_soup_days"}
+
     result = await hass.config_entries.flow.async_configure(
-        result["flow_id"], {**DEFAULT_OPTIONS, "soup_share": 40.0}
+        result["flow_id"], {**DEFAULT_OPTIONS, "soup_days": 3.0, "soup_weekdays": ["mon", "thu"]}
     )
     assert result["type"] is FlowResultType.CREATE_ENTRY
     assert result["title"] == "Obiady"
-    assert result["options"]["soup_share"] == 40
+    assert result["options"]["soup_days"] == 3
+    assert result["options"]["soup_weekdays"] == ["mon", "thu"]
+    assert "soup_share" not in result["options"]
 
 
 async def test_options_flow_reloads(hass_pl: HomeAssistant) -> None:
@@ -166,6 +173,26 @@ async def test_setup_creates_entities_and_first_plan(
     planner = entry.runtime_data
     soup_days = [iso for iso, m in planner.plan.items() if m["parts"][0]["category"] == "soup"]
     assert len(soup_events) == len(soup_days)
+
+
+async def test_soups_follow_the_week_and_the_preferred_days(
+    hass_pl: HomeAssistant, freezer: FrozenDateTimeFactory
+) -> None:
+    """On Wednesday the rest of the week is drawn; its one soup goes to Friday.
+
+    Monday to Wednesday have no lunch in the plan, so they share the soup with
+    Thursday and Friday, but Friday is the preferred day and gets it first.
+    """
+    hass = hass_pl
+    freezer.move_to(local(WEDNESDAY_NOON))
+    entry = make_entry(soup_days=1, soup_weekdays=["fri"])
+    await setup_entry(hass, entry)
+    await fill_database(hass, entry)
+    for _ in range(5):
+        await hass.services.async_call(DOMAIN, "redraw", {}, blocking=True)
+        plan = entry.runtime_data.plan
+        assert plan["2026-11-13"]["parts"][0]["category"] == "soup"
+        assert plan["2026-11-12"]["parts"][0]["category"] != "soup"
 
 
 async def test_calendar_uses_the_lunch_time(

@@ -40,7 +40,8 @@ MEAL_SCHEDULES = (SCHEDULE_WORKDAYS, SCHEDULE_WEEKENDS, SCHEDULE_EVERY_DAY)
 CONF_MEAL_SCHEDULE = "meal_schedule"
 CONF_WORKDAYS = "workdays"
 CONF_MEAL_MODE = "meal_mode"
-CONF_SOUP_SHARE = "soup_share"
+CONF_SOUP_DAYS = "soup_days"
+CONF_SOUP_WEEKDAYS = "soup_weekdays"
 CONF_AVOID_PREVIOUS_WEEK = "avoid_previous_week"
 CONF_WEEK_START = "week_start"
 CONF_DRAW_WEEKDAY = "draw_weekday"
@@ -56,7 +57,9 @@ DEFAULT_OPTIONS = {
     CONF_MEAL_SCHEDULE: SCHEDULE_WORKDAYS,
     CONF_WORKDAYS: ["mon", "tue", "wed", "thu", "fri"],
     CONF_MEAL_MODE: MODE_SOUP_OR_MAIN,
-    CONF_SOUP_SHARE: 50,
+    # With one course a day: soups per week, and the days that get them first.
+    CONF_SOUP_DAYS: 2,
+    CONF_SOUP_WEEKDAYS: ["mon"],
     CONF_AVOID_PREVIOUS_WEEK: True,
     # The meals of a week are drawn before most of their shopping days. A meal
     # whose shopping day comes before the draw (Monday, bought on Saturday when

@@ -111,8 +111,15 @@ class PlannerOptions:
     """Options that change how meals are drawn."""
 
     meal_mode: str = MODE_SOUP_OR_MAIN
-    soup_share: int = 50
+    # With MODE_SOUP_OR_MAIN: soups per week, and the weekdays that get them first.
+    soup_days: int = 2
+    soup_weekdays: frozenset[int] = frozenset({0})
     avoid_previous_week: bool = True
+    # Weekdays (0 Monday ... 6 Sunday) that have a lunch, and the first day of
+    # the week. The soups of a week are shared out over all its lunch days,
+    # also the ones off or not drawn now.
+    meal_weekdays: frozenset[int] = frozenset(range(5))
+    week_start: int = 0
 
 
 def meal_title(meal: Mapping[str, Any]) -> str:
@@ -230,20 +237,61 @@ class _Picker:
         return self._rng.choice([c for score, c in scored if score == best])
 
 
-def _meal_kinds(count: int, options: PlannerOptions, rng: random.Random) -> list[set[str]]:
+def _has_soup(meal: Mapping[str, Any] | None) -> bool:
+    return bool(meal) and any(p["category"] == SOUP for p in meal.get("parts", []))
+
+
+def _soup_days(
+    days: list[date],
+    history: Mapping[str, Mapping[str, Any]],
+    options: PlannerOptions,
+    rng: random.Random,
+) -> set[date]:
+    """Days among ``days`` that get a soup, with one course a day.
+
+    Each week has ``soup_days`` soups. Meals that stay in the plan keep theirs;
+    the rest are shared out over the week's other lunch days: the days being
+    drawn and the lunch days without a meal (off, or past before the plan
+    started). Preferred weekdays come first. A soup that lands on a day
+    without a meal is lost, so days off take soups away in proportion.
+    """
+    drawn = set(days)
+    starts = sorted({d - timedelta(days=(d.weekday() - options.week_start) % 7) for d in days})
+    result: set[date] = set()
+    for start in starts:
+        week = [start + timedelta(days=i) for i in range(7)]
+        kept = [d for d in week if d not in drawn and d.isoformat() in history]
+        kept_soups = sum(1 for d in kept if _has_soup(history[d.isoformat()]))
+        slots = [
+            d
+            for d in week
+            if d in drawn or (d.weekday() in options.meal_weekdays and d not in kept)
+        ]
+        left = max(min(options.soup_days, 7) - kept_soups, 0)
+        preferred = [d for d in slots if d.weekday() in options.soup_weekdays]
+        others = [d for d in slots if d.weekday() not in options.soup_weekdays]
+        chosen = rng.sample(preferred, min(left, len(preferred)))
+        chosen += rng.sample(others, min(left - len(chosen), len(others)))
+        result.update(d for d in chosen if d in drawn)
+    return result
+
+
+def _meal_kinds(
+    days: list[date],
+    history: Mapping[str, Mapping[str, Any]],
+    options: PlannerOptions,
+    rng: random.Random,
+) -> list[set[str]]:
     """Decide for each day whether it gets a soup, a main course or both."""
     mode = options.meal_mode
     if mode == MODE_SOUP_ONLY:
-        return [{_KIND_SOUP} for _ in range(count)]
+        return [{_KIND_SOUP} for _ in days]
     if mode == MODE_MAIN_ONLY:
-        return [{_KIND_MAIN} for _ in range(count)]
+        return [{_KIND_MAIN} for _ in days]
     if mode == MODE_SOUP_AND_MAIN:
-        return [{_KIND_SOUP, _KIND_MAIN} for _ in range(count)]
-    share = min(max(options.soup_share, 0), 100)
-    soups = round(count * share / 100)
-    kinds = [{_KIND_SOUP}] * soups + [{_KIND_MAIN}] * (count - soups)
-    rng.shuffle(kinds)
-    return [set(k) for k in kinds]
+        return [{_KIND_SOUP, _KIND_MAIN} for _ in days]
+    soups = _soup_days(days, history, options, rng)
+    return [{_KIND_SOUP} if d in soups else {_KIND_MAIN} for d in days]
 
 
 def plan_days(
@@ -262,9 +310,10 @@ def plan_days(
     A day for which nothing can be drawn (empty database) is left out.
     """
     rng = rng or random.Random()
+    history = history or {}
     days = sorted(set(days))
-    picker = _Picker(history or {}, set(days), options, rng)
-    kinds = _meal_kinds(len(days), options, rng)
+    picker = _Picker(history, set(days), options, rng)
+    kinds = _meal_kinds(days, history, options, rng)
     plan: dict[str, dict[str, Any]] = {}
 
     for day, wanted in zip(days, kinds, strict=True):

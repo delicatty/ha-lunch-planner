@@ -98,11 +98,124 @@ def test_soup_or_main_gives_exactly_one_kind_per_day(catalog):
         assert (categories == {planner.SOUP}) or (planner.SOUP not in categories)
 
 
-@pytest.mark.parametrize("share", [0, 40, 60, 100])
-def test_soup_share_sets_the_number_of_soup_days(catalog, share):
-    plan = planner.plan_days(WEEK, catalog, PlannerOptions(soup_share=share), rng=random.Random(2))
-    soup_days = sum(1 for m in plan.values() if m["parts"][0]["category"] == planner.SOUP)
-    assert soup_days == round(5 * share / 100)
+def soup_dates(plan) -> set[date]:
+    return {
+        date.fromisoformat(iso)
+        for iso, meal in plan.items()
+        if meal["parts"][0]["category"] == planner.SOUP
+    }
+
+
+def kept(day: date, category: str) -> dict:
+    return {"date": day.isoformat(), "parts": [{"category": category, "uid": "x", "name": "x"}]}
+
+
+@pytest.mark.parametrize("count", [0, 1, 2, 4, 5])
+@pytest.mark.parametrize("preferred", [frozenset(), frozenset({0}), frozenset({0, 2, 4})])
+def test_soup_days_sets_the_number_of_soups(catalog, count, preferred):
+    options = PlannerOptions(soup_days=count, soup_weekdays=preferred)
+    for seed in range(10):
+        plan = planner.plan_days(WEEK, catalog, options, rng=random.Random(seed))
+        assert len(soup_dates(plan)) == count
+
+
+def test_more_soups_than_lunch_days_gives_soup_every_day(catalog):
+    plan = planner.plan_days(WEEK, catalog, PlannerOptions(soup_days=7), rng=random.Random(0))
+    assert soup_dates(plan) == set(WEEK)
+
+
+def test_preferred_day_always_gets_a_soup(catalog):
+    options = PlannerOptions(soup_days=1, soup_weekdays=frozenset({0}))
+    for seed in range(30):
+        plan = planner.plan_days(WEEK, catalog, options, rng=random.Random(seed))
+        assert soup_dates(plan) == {MONDAY}
+
+
+def test_more_preferred_days_than_soups_picks_among_them(catalog):
+    options = PlannerOptions(soup_days=2, soup_weekdays=frozenset({0, 2, 4}))
+    preferred = {WEEK[0], WEEK[2], WEEK[4]}
+    seen: set[date] = set()
+    for seed in range(60):
+        soups = soup_dates(planner.plan_days(WEEK, catalog, options, rng=random.Random(seed)))
+        assert len(soups) == 2 and soups <= preferred
+        seen |= soups
+    assert seen == preferred
+
+
+def test_fewer_preferred_days_than_soups_fills_up_at_random(catalog):
+    options = PlannerOptions(soup_days=3, soup_weekdays=frozenset({0}))
+    seen: set[date] = set()
+    for seed in range(60):
+        soups = soup_dates(planner.plan_days(WEEK, catalog, options, rng=random.Random(seed)))
+        assert len(soups) == 3 and MONDAY in soups
+        seen |= soups
+    assert seen == set(WEEK)
+
+
+@pytest.mark.parametrize(
+    ("preferred", "expected"), [(frozenset(), 2 * 4 / 5), (frozenset({0}), 1 + 3 / 4)]
+)
+def test_a_day_off_takes_soups_away_in_proportion(catalog, preferred, expected):
+    """Wednesday is off: it shares the soups but has no lunch."""
+    options = PlannerOptions(soup_days=2, soup_weekdays=preferred)
+    days = [d for d in WEEK if d != WEEK[2]]
+    runs = 2000
+    total = sum(
+        len(soup_dates(planner.plan_days(days, catalog, options, rng=random.Random(seed))))
+        for seed in range(runs)
+    )
+    assert total / runs == pytest.approx(expected, abs=0.05)
+
+
+def test_preferred_day_off_takes_its_soup_with_it(catalog):
+    options = PlannerOptions(soup_days=1, soup_weekdays=frozenset({0}))
+    for seed in range(30):
+        plan = planner.plan_days(WEEK[1:], catalog, options, rng=random.Random(seed))
+        assert soup_dates(plan) == set()
+
+
+def test_redrawing_a_day_keeps_the_soups_of_the_week(catalog):
+    options = PlannerOptions(soup_days=2, soup_weekdays=frozenset({0}))
+    for seed in range(30):
+        plan = planner.plan_days(WEEK, catalog, options, rng=random.Random(seed))
+        for day in WEEK:
+            redrawn = planner.plan_days([day], catalog, options, plan, random.Random(seed + 100))
+            assert (day in soup_dates(redrawn)) is (day in soup_dates(plan)), (seed, day)
+
+
+def test_kept_soups_count_towards_the_week(catalog):
+    options = PlannerOptions(soup_days=2, soup_weekdays=frozenset())
+    history = {d.isoformat(): kept(d, planner.SOUP) for d in WEEK[:2]}
+    for seed in range(20):
+        plan = planner.plan_days(WEEK[2:], catalog, options, history, random.Random(seed))
+        assert soup_dates(plan) == set()
+
+
+def test_soups_are_counted_per_week(catalog):
+    options = PlannerOptions(soup_days=1, soup_weekdays=frozenset({4}))
+    two_weeks = WEEK + [d + timedelta(days=7) for d in WEEK]
+    plan = planner.plan_days(two_weeks, catalog, options, rng=random.Random(0))
+    assert soup_dates(plan) == {WEEK[4], WEEK[4] + timedelta(days=7)}
+
+
+def test_week_start_sets_which_days_share_the_soups(catalog):
+    """Monday had no soup; Wednesday to Friday are drawn, Tuesday is off.
+
+    With weeks from Monday the soup goes to Tuesday to Friday, so usually to a
+    drawn day. With weeks from Wednesday the drawn days start a new week whose
+    preferred Monday comes later and takes the soup.
+    """
+    history = {MONDAY.isoformat(): kept(MONDAY, planner.DISH)}
+    from_monday = PlannerOptions(soup_days=1, soup_weekdays=frozenset({0}))
+    from_wednesday = PlannerOptions(soup_days=1, soup_weekdays=frozenset({0}), week_start=2)
+    counts = [
+        len(soup_dates(planner.plan_days(WEEK[2:], catalog, from_monday, history, random.Random(s))))
+        for s in range(30)
+    ]
+    assert set(counts) == {0, 1}
+    for seed in range(30):
+        plan = planner.plan_days(WEEK[2:], catalog, from_wednesday, history, random.Random(seed))
+        assert soup_dates(plan) == set()
 
 
 def test_soup_and_main_mode(catalog):

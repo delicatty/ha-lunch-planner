@@ -16,7 +16,8 @@
           "meal_schedule": "Kiedy obiady",
           "workdays": "Dni robocze",
           "meal_mode": "Co jest na obiad",
-          "soup_share": "Udział dni z zupą",
+          "soup_days": "Dni z zupą w tygodniu",
+          "soup_weekdays": "Preferowane dni zupy",
           "avoid_previous_week": "Unikaj dań z poprzedniego tygodnia",
           "week_start": "Pierwszy dzień tygodnia",
           "draw_weekday": "Losowanie: dzień",
@@ -32,7 +33,8 @@
           "meal_schedule": "W dni robocze, w pozostałe dni tygodnia (weekendy) albo codziennie.",
           "workdays": "Twoje dni robocze; weekendy to pozostałe dni. Przy „Codziennie” nie mają znaczenia.",
           "meal_mode": "Jedno danie: zupa albo drugie danie. Dwa dania: zupa i drugie danie.",
-          "soup_share": "Tylko przy „Jedno danie”: w ilu procentach dni jest zupa.",
+          "soup_days": "Tylko przy „Jedno danie”: ile obiadów w tygodniu to zupa. Dzień wolny może zabrać zupę ze sobą.",
+          "soup_weekdays": "Tylko przy „Jedno danie”: te dni dostają zupę w pierwszej kolejności. Gdy jest ich więcej niż zup, zupa trafia na losowo wybrane z nich.",
           "avoid_previous_week": "Unikaj pozycji wylosowanych tydzień wcześniej, jeśli baza na to pozwala.",
           "week_start": "Losowanie tygodniowe planuje tydzień od tego dnia.",
           "draw_weekday": "Losowanie planuje następny tydzień. Najlepiej ustaw je przed zakupami na pierwszy obiad tygodnia. Obiad, na który zakupy wypadają wcześniej, wylosuje się sam o północy przed dniem zakupów.",
@@ -48,6 +50,7 @@
     "error": {
       "no_workdays": "Wybierz co najmniej jeden dzień roboczy.",
       "no_weekend_days": "Gdy każdy dzień jest roboczy, nie ma weekendu: odznacz któryś dzień albo wybierz „Codziennie”.",
+      "too_many_soup_days": "W tygodniu jest mniej dni z obiadem niż dni z zupą.",
       "no_shopping_day_left": "Zostaw co najmniej jeden dzień na zakupy."
     }
   },
@@ -60,7 +63,8 @@
           "meal_schedule": "Kiedy obiady",
           "workdays": "Dni robocze",
           "meal_mode": "Co jest na obiad",
-          "soup_share": "Udział dni z zupą",
+          "soup_days": "Dni z zupą w tygodniu",
+          "soup_weekdays": "Preferowane dni zupy",
           "avoid_previous_week": "Unikaj dań z poprzedniego tygodnia",
           "week_start": "Pierwszy dzień tygodnia",
           "draw_weekday": "Losowanie: dzień",
@@ -76,7 +80,8 @@
           "meal_schedule": "W dni robocze, w pozostałe dni tygodnia (weekendy) albo codziennie.",
           "workdays": "Twoje dni robocze; weekendy to pozostałe dni. Przy „Codziennie” nie mają znaczenia.",
           "meal_mode": "Jedno danie: zupa albo drugie danie. Dwa dania: zupa i drugie danie.",
-          "soup_share": "Tylko przy „Jedno danie”: w ilu procentach dni jest zupa.",
+          "soup_days": "Tylko przy „Jedno danie”: ile obiadów w tygodniu to zupa. Dzień wolny może zabrać zupę ze sobą.",
+          "soup_weekdays": "Tylko przy „Jedno danie”: te dni dostają zupę w pierwszej kolejności. Gdy jest ich więcej niż zup, zupa trafia na losowo wybrane z nich.",
           "avoid_previous_week": "Unikaj pozycji wylosowanych tydzień wcześniej, jeśli baza na to pozwala.",
           "week_start": "Losowanie tygodniowe planuje tydzień od tego dnia.",
           "draw_weekday": "Losowanie planuje następny tydzień. Najlepiej ustaw je przed zakupami na pierwszy obiad tygodnia. Obiad, na który zakupy wypadają wcześniej, wylosuje się sam o północy przed dniem zakupów.",
@@ -92,6 +97,7 @@
     "error": {
       "no_workdays": "Wybierz co najmniej jeden dzień roboczy.",
       "no_weekend_days": "Gdy każdy dzień jest roboczy, nie ma weekendu: odznacz któryś dzień albo wybierz „Codziennie”.",
+      "too_many_soup_days": "W tygodniu jest mniej dni z obiadem niż dni z zupą.",
       "no_shopping_day_left": "Zostaw co najmniej jeden dzień na zakupy."
     }
   },

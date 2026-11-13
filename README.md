@@ -32,9 +32,15 @@ adding to a shopping list are done by automations; two ready
 - A weekly draw plans the next week. Within a week nothing repeats as long as
   the database allows it, nothing repeats on two days in a row, and (optionally)
   last week's meals are avoided.
-- What a lunch is: **one course** (soup or a main course; you choose the share
-  of soup days), **two courses** (soup and a main course), soup only, or main
-  course only.
+- What a lunch is: **one course** (soup or a main course), **two courses**
+  (soup and a main course), soup only, or main course only.
+- With one course you choose how many lunches a week are soup, and the
+  preferred soup days (Monday by default), which get the soups first. With
+  more preferred days than soups, the soups go to some of them at random. The
+  soups are shared out over all lunch days of the week, days off included, and
+  a soup that lands on a day off is not served, so days off take soups away in
+  proportion. A preferred day that is off takes its soup with it. Drawing one
+  day again keeps the number of soups in a week without days off.
 - Lunches on your work days (Monday–Friday by default), on the other days
   (weekends), or every day.
 - Days off: a day with an all-day event in a chosen calendar has no lunch, e.g.
@@ -65,7 +71,7 @@ adding to a shopping list are done by automations; two ready
 |---|---|
 | When to have lunch | On work days |
 | Work days | Monday–Friday (weekends are the other days) |
-| What each lunch is | One course, 50% soup days |
+| What each lunch is | One course, 2 soup days a week, soup preferably on Monday |
 | Avoid last week's meals | on |
 | First day of the week | From the country set in Home Assistant (Monday in most of Europe, Sunday e.g. in the US) |
 | Weekly draw | Saturday 09:00 (plans the next week) |
@@ -189,6 +195,14 @@ i **surówki lub warzyw**.
   jest losowana.
 - Obiad to jedno danie (zupa albo drugie danie), dwa dania (zupa i drugie
   danie), tylko zupa albo tylko drugie danie.
+- Przy jednym daniu ustawiasz, ile obiadów w tygodniu to zupa (domyślnie 2),
+  i preferowane dni zupy (domyślnie poniedziałek), które dostają zupę
+  w pierwszej kolejności. Gdy preferowanych dni jest więcej niż zup, zupa
+  trafia na losowo wybrane z nich. Zupy rozdziela się na wszystkie dni
+  z obiadem w tygodniu, także wolne, a zupa, która trafi na dzień wolny,
+  przepada: dni wolne proporcjonalnie zmniejszają liczbę zup. Wolny
+  preferowany dzień zabiera swoją zupę ze sobą. Ponowne losowanie jednego dnia
+  nie zmienia liczby zup w tygodniu bez dni wolnych.
 - Losowanie raz w tygodniu (domyślnie sobota 9:00) planuje następny tydzień
   (pierwszy dzień tygodnia ustawiasz, domyślnie wynika z kraju w ustawieniach
   Home Assistanta), bez powtórek w tygodniu i dzień po dniu, a jeśli
