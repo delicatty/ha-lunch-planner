@@ -90,7 +90,12 @@ async def shopping(
     hass.states.async_set(
         SENSOR,
         "bread",
-        {"list_date": TODAY, "shopping_items": ["bread"], "summary": "Fri: Soup"},
+        {
+            "list_date": TODAY,
+            "shopping_items": ["bread"],
+            "summary": "Fri: Soup",
+            "meal_dates": ["2026-11-13"],
+        },
     )
     target = Path(hass.config.path("blueprints", "automation", "lunch_planner"))
     target.mkdir(parents=True, exist_ok=True)
@@ -189,3 +194,37 @@ async def test_nothing_on_other_days(hass: HomeAssistant, shopping: Shopping) ->
     await shopping.time(17)
     await shopping.time(20)
     assert shopping.sent == []
+
+
+async def change_lunch(hass: HomeAssistant, day: str, items: list[str]) -> None:
+    """The planner changed a lunch: new things to buy, then the event."""
+    hass.states.async_set(
+        SENSOR,
+        items[0],
+        {"list_date": TODAY, "shopping_items": items, "summary": "Fri: Chop",
+         "meal_dates": ["2026-11-13"]},
+    )
+    hass.bus.async_fire(
+        "lunch_planner_plan_updated", {"entry_id": "x", "reason": "swap", "drawn": [day]}
+    )
+    await hass.async_block_till_done()
+
+
+async def test_a_change_after_the_list_went_out_sends_it_again(
+    hass: HomeAssistant, shopping: Shopping
+) -> None:
+    await shopping.setup()
+    # Before the list went out: nothing extra, the list then has the change.
+    await shopping.time(16)
+    await change_lunch(hass, "2026-11-13", ["rice"])
+    assert shopping.sent == []
+    await shopping.time(17)
+    assert len(shopping.sent) == 1 and "rice" in shopping.sent[0]
+
+    # A change of another day's lunch is not on today's list.
+    await shopping.time(17, 30)
+    await change_lunch(hass, "2026-11-17", ["rice"])
+    assert len(shopping.sent) == 1
+
+    await change_lunch(hass, "2026-11-13", ["potatoes"])
+    assert len(shopping.sent) == 2 and "potatoes" in shopping.sent[1]

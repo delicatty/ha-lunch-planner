@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 
+from datetime import time
+
 from homeassistant.const import Platform
 
 from .planner import (
@@ -113,6 +115,10 @@ REMOVED_OPTIONS = (
     "shopping_list",
 )
 
+# A lunch can still change (draw again, swap sides) until this time of the
+# day its shopping list goes out. The weekly draw must come before it.
+LOCK_TIME = time(18, 0)
+
 # Integration whose calendars hold public holidays (shops closed).
 HOLIDAY_PLATFORM = "holiday"
 # How far ahead the days-off calendars are read.
@@ -131,3 +137,4 @@ REASON_WEEKLY = "weekly"
 REASON_REDRAW = "redraw"
 REASON_MISSING = "missing"
 REASON_FIRST = "first"
+REASON_SWAP = "swap"

@@ -38,6 +38,7 @@
           "avoid_previous_week": "Unikaj pozycji wylosowanych tydzień wcześniej, jeśli baza na to pozwala.",
           "week_start": "Losowanie tygodniowe planuje tydzień od tego dnia.",
           "draw_weekday": "Losowanie planuje następny tydzień. Najlepiej ustaw je przed zakupami na pierwszy obiad tygodnia. Obiad, na który zakupy wypadają wcześniej, wylosuje się sam o północy przed dniem zakupów.",
+          "draw_time": "Przed 18:00. Do 18:00 dnia, w którym wychodzi lista zakupów, obiad można jeszcze przelosować albo wymienić w nim dodatki.",
           "no_shopping_days": "Obiad kupujesz dzień wcześniej albo w ostatni wcześniejszy dzień z otwartymi sklepami. Po przerwie 3 dni lub dłuższej (np. Wielkanoc) kupujesz go rano w dniu obiadu.",
           "days_off_calendars": "W dni z wydarzeniem całodniowym w tych kalendarzach nie ma obiadu.",
           "holiday_shops_closed": "Brak zakupów w dni z kalendarzy integracji Holiday. Inne kalendarze (np. urlop) odwołują tylko obiady.",
@@ -51,6 +52,7 @@
       "no_workdays": "Wybierz co najmniej jeden dzień roboczy.",
       "no_weekend_days": "Gdy każdy dzień jest roboczy, nie ma weekendu: odznacz któryś dzień albo wybierz „Codziennie”.",
       "too_many_soup_days": "W tygodniu jest mniej dni z obiadem niż dni z zupą.",
+      "draw_after_lock": "Losowanie musi być przed 18:00: wtedy ustalają się obiady, na które lista zakupów wychodzi tego dnia.",
       "no_shopping_day_left": "Zostaw co najmniej jeden dzień na zakupy."
     }
   },
@@ -85,6 +87,7 @@
           "avoid_previous_week": "Unikaj pozycji wylosowanych tydzień wcześniej, jeśli baza na to pozwala.",
           "week_start": "Losowanie tygodniowe planuje tydzień od tego dnia.",
           "draw_weekday": "Losowanie planuje następny tydzień. Najlepiej ustaw je przed zakupami na pierwszy obiad tygodnia. Obiad, na który zakupy wypadają wcześniej, wylosuje się sam o północy przed dniem zakupów.",
+          "draw_time": "Przed 18:00. Do 18:00 dnia, w którym wychodzi lista zakupów, obiad można jeszcze przelosować albo wymienić w nim dodatki.",
           "no_shopping_days": "Obiad kupujesz dzień wcześniej albo w ostatni wcześniejszy dzień z otwartymi sklepami. Po przerwie 3 dni lub dłuższej (np. Wielkanoc) kupujesz go rano w dniu obiadu.",
           "days_off_calendars": "W dni z wydarzeniem całodniowym w tych kalendarzach nie ma obiadu.",
           "holiday_shops_closed": "Brak zakupów w dni z kalendarzy integracji Holiday. Inne kalendarze (np. urlop) odwołują tylko obiady.",
@@ -98,6 +101,7 @@
       "no_workdays": "Wybierz co najmniej jeden dzień roboczy.",
       "no_weekend_days": "Gdy każdy dzień jest roboczy, nie ma weekendu: odznacz któryś dzień albo wybierz „Codziennie”.",
       "too_many_soup_days": "W tygodniu jest mniej dni z obiadem niż dni z zupą.",
+      "draw_after_lock": "Losowanie musi być przed 18:00: wtedy ustalają się obiady, na które lista zakupów wychodzi tego dnia.",
       "no_shopping_day_left": "Zostaw co najmniej jeden dzień na zakupy."
     }
   },
@@ -142,6 +146,8 @@
         "plan": "Plan",
         "upcoming": "Najbliższe obiady",
         "no_lunches": "Nie ma jeszcze zaplanowanych obiadów.",
+        "swap": "Wymień dodatki",
+        "no_salad": "Bez surówki i warzyw",
         "database": "Baza posiłków",
         "single": "Posiłki o ustalonym składzie",
         "composed": "Części posiłku składanego",

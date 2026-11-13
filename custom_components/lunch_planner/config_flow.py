@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from datetime import time
 from typing import Any
 
 import voluptuous as vol
@@ -29,6 +30,7 @@ from .const import (
     CONF_WORKDAYS,
     DEFAULT_OPTIONS,
     DOMAIN,
+    LOCK_TIME,
     MEAL_MODES,
     MEAL_SCHEDULES,
     MODE_SOUP_OR_MAIN,
@@ -195,6 +197,9 @@ def _validate(user_input: dict[str, Any]) -> dict[str, str]:
         and int(user_input.get(CONF_SOUP_DAYS, 0)) > _lunch_days_a_week(schedule, workdays)
     ):
         errors[CONF_SOUP_DAYS] = "too_many_soup_days"
+    draw_time = user_input.get(CONF_DRAW_TIME)
+    if draw_time and time(*(int(p) for p in str(draw_time).split(":")[:3])) >= LOCK_TIME:
+        errors[CONF_DRAW_TIME] = "draw_after_lock"
     if len(user_input.get(CONF_NO_SHOPPING_DAYS, [])) >= 7:
         errors[CONF_NO_SHOPPING_DAYS] = "no_shopping_day_left"
     return errors

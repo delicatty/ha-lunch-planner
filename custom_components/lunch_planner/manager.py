@@ -40,9 +40,11 @@ from .const import (
     EVENT_PLAN_UPDATED,
     HISTORY_DAYS,
     HOLIDAY_PLATFORM,
+    LOCK_TIME,
     REASON_FIRST,
     REASON_MISSING,
     REASON_REDRAW,
+    REASON_SWAP,
     REASON_WEEKLY,
     SCHEDULE_EVERY_DAY,
     SCHEDULE_WEEKENDS,
@@ -366,14 +368,59 @@ class LunchPlanner:
         return self.plan.get(day.isoformat())
 
     def is_locked(self, day: date) -> bool:
-        """A day is fixed from the start of the day its shopping list goes out.
+        """A day is fixed from ``LOCK_TIME`` of the day its shopping list goes out.
 
         That is its shopping day, or the day before when it is bought in the
-        morning of the lunch day. From then on the list may already be out, so
-        drawing again must not change it.
+        morning of the lunch day. Until then the lunch can still change (the
+        shopping list automation sends the list again); from then on it may
+        already be bought.
         """
-        today = self.today()
-        return day <= today or self.list_day(day) <= today
+        now = dt_util.now()
+        today = now.date()
+        if day <= today:
+            return True
+        list_day = self.list_day(day)
+        return list_day < today or (list_day == today and now.time() >= LOCK_TIME)
+
+    def swappable(self, day: date) -> bool:
+        """Whether the sides of the lunch on ``day`` can still be swapped."""
+        meal = self.meal_for(day)
+        return (
+            meal is not None
+            and any(p["category"] == planner.PROTEIN for p in meal["parts"])
+            and not self.is_locked(day)
+        )
+
+    def _side(self, category: str, uid: str) -> dict[str, Any]:
+        """A meal part from the database item ``uid`` of ``category``."""
+        found_category, meal = self._find(uid)
+        if found_category != category:
+            raise HomeAssistantError(f"Meal {uid} is not in {category}")
+        item = planner.Item(uid=meal["uid"], name=meal["name"], ingredients=tuple(meal["ingredients"]))
+        return {
+            "category": category,
+            "uid": item.uid,
+            "name": item.name,
+            "ingredients": list(item.shopping_items()),
+        }
+
+    @callback
+    def swap_sides(self, day: date, starch_uid: str, salad_uid: str | None) -> None:
+        """Change the starch and the salad (or drop it) of a composed lunch."""
+        meal = self.meal_for(day)
+        if meal is None:
+            raise HomeAssistantError(f"There is no lunch on {day}")
+        if not any(p["category"] == planner.PROTEIN for p in meal["parts"]):
+            raise HomeAssistantError(f"The lunch on {day} has no sides to swap")
+        if self.is_locked(day):
+            raise HomeAssistantError(f"{day} is already fixed: its shopping list is out")
+        parts = [p for p in meal["parts"] if p["category"] not in (planner.STARCH, planner.SALAD)]
+        parts.append(self._side(planner.STARCH, starch_uid))
+        if salad_uid:
+            parts.append(self._side(planner.SALAD, salad_uid))
+        self.plan[day.isoformat()] = {**meal, "parts": parts}
+        self.hass.bus.async_fire(EVENT_PLAN_UPDATED, self._plan_event([day], REASON_SWAP))
+        self._changed()
 
     @callback
     def _draw(self, days: list[date], reason: str) -> list[date]:
@@ -601,6 +648,16 @@ class LunchPlanner:
         self._unsubs.append(
             async_track_time_change(self.hass, self._on_midnight, hour=0, minute=0, second=5)
         )
+        # Lunches whose shopping list goes out today become fixed.
+        self._unsubs.append(
+            async_track_time_change(
+                self.hass,
+                self._on_lock_time,
+                hour=LOCK_TIME.hour,
+                minute=LOCK_TIME.minute,
+                second=LOCK_TIME.second,
+            )
+        )
         # Calendars of other integrations (days off) may load after this one.
         self._unsubs.append(async_at_started(self.hass, self._async_on_started))
 
@@ -625,6 +682,11 @@ class LunchPlanner:
         await self.async_refresh_days_off()
         self._remove_days_off()
         self.async_weekly_draw()
+
+    @callback
+    def _on_lock_time(self, _now: datetime) -> None:
+        for update in list(self._listeners):
+            update()
 
     @callback
     def _on_midnight(self, _now: datetime) -> None:

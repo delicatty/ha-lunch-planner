@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from datetime import date
 from typing import Any
 
 import voluptuous as vol
@@ -22,6 +23,7 @@ _MONTH = vol.All(vol.Coerce(int), vol.Range(min=1, max=12))
 def async_register(hass: HomeAssistant) -> None:
     websocket_api.async_register_command(hass, ws_subscribe)
     websocket_api.async_register_command(hass, ws_plan_subscribe)
+    websocket_api.async_register_command(hass, ws_plan_swap)
     websocket_api.async_register_command(hass, ws_save)
     websocket_api.async_register_command(hass, ws_delete)
 
@@ -76,19 +78,46 @@ def ws_plan_subscribe(hass: HomeAssistant, connection, msg: dict[str, Any]) -> N
             if iso < today:
                 continue
             start, end = planner.lunch_times(meal)
-            lunches.append(
-                {
-                    "date": iso,
-                    "start": start.isoformat(),
-                    "end": end.isoformat(),
-                    "meal": planner.describe(meal),
-                }
-            )
+            lunch = {
+                "date": iso,
+                "start": start.isoformat(),
+                "end": end.isoformat(),
+                "meal": planner.describe(meal),
+            }
+            if planner.swappable(date.fromisoformat(iso)):
+                sides = {p["category"]: p["uid"] for p in meal["parts"]}
+                lunch["swap"] = {"starch": sides.get("starch"), "salad": sides.get("salad")}
+            lunches.append(lunch)
         connection.send_message(websocket_api.event_message(msg["id"], {"lunches": lunches}))
 
     connection.subscriptions[msg["id"]] = planner.async_add_listener(send)
     connection.send_result(msg["id"])
     send()
+
+
+@websocket_api.require_admin
+@websocket_api.websocket_command(
+    {
+        vol.Required("type"): f"{DOMAIN}/plan/swap",
+        vol.Required("entry_id"): str,
+        vol.Required("date"): str,
+        vol.Required("starch"): str,
+        vol.Optional("salad"): vol.Any(None, str),
+    }
+)
+@callback
+def ws_plan_swap(hass: HomeAssistant, connection, msg: dict[str, Any]) -> None:
+    """Swap the starch and the salad of a composed lunch."""
+    planner = _planner(hass, connection, msg)
+    if planner is None:
+        return
+    try:
+        day = date.fromisoformat(msg["date"])
+        planner.swap_sides(day, msg["starch"], msg.get("salad"))
+    except (ValueError, HomeAssistantError) as err:
+        connection.send_error(msg["id"], websocket_api.ERR_INVALID_FORMAT, str(err))
+        return
+    connection.send_result(msg["id"])
 
 
 @websocket_api.require_admin

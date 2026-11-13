@@ -38,6 +38,7 @@
           "avoid_previous_week": "Choose meals that were not served the week before, if the database allows it.",
           "week_start": "The weekly draw plans the week that starts on this day.",
           "draw_weekday": "The draw plans the next week. Best set it before the shopping for the first lunch of the week; a lunch whose shopping comes earlier is drawn on its own at midnight before its shopping day.",
+          "draw_time": "Before 18:00. Until 18:00 of the day its shopping list goes out, a lunch can still be drawn again or get other sides.",
           "no_shopping_days": "A lunch is bought the day before, or on the last open day before it. After a break of 3 days or more (e.g. Easter) it is bought in the morning of the lunch day instead.",
           "days_off_calendars": "No lunch on days with an all-day event in these calendars.",
           "holiday_shops_closed": "No shopping on the days of calendars from the Holiday integration. Other calendars (e.g. a holiday trip) cancel lunches only.",
@@ -51,6 +52,7 @@
       "no_workdays": "Choose at least one work day.",
       "no_weekend_days": "With every day a work day there is no weekend: leave out a day or choose \"Every day\".",
       "too_many_soup_days": "There are fewer lunch days in a week than soup days.",
+      "draw_after_lock": "The weekly draw must come before 18:00: then the lunches whose shopping list goes out that day become fixed.",
       "no_shopping_day_left": "Leave at least one day for shopping."
     }
   },
@@ -85,6 +87,7 @@
           "avoid_previous_week": "Choose meals that were not served the week before, if the database allows it.",
           "week_start": "The weekly draw plans the week that starts on this day.",
           "draw_weekday": "The draw plans the next week. Best set it before the shopping for the first lunch of the week; a lunch whose shopping comes earlier is drawn on its own at midnight before its shopping day.",
+          "draw_time": "Before 18:00. Until 18:00 of the day its shopping list goes out, a lunch can still be drawn again or get other sides.",
           "no_shopping_days": "A lunch is bought the day before, or on the last open day before it. After a break of 3 days or more (e.g. Easter) it is bought in the morning of the lunch day instead.",
           "days_off_calendars": "No lunch on days with an all-day event in these calendars.",
           "holiday_shops_closed": "No shopping on the days of calendars from the Holiday integration. Other calendars (e.g. a holiday trip) cancel lunches only.",
@@ -98,6 +101,7 @@
       "no_workdays": "Choose at least one work day.",
       "no_weekend_days": "With every day a work day there is no weekend: leave out a day or choose \"Every day\".",
       "too_many_soup_days": "There are fewer lunch days in a week than soup days.",
+      "draw_after_lock": "The weekly draw must come before 18:00: then the lunches whose shopping list goes out that day become fixed.",
       "no_shopping_day_left": "Leave at least one day for shopping."
     }
   },
@@ -142,6 +146,8 @@
         "plan": "Plan",
         "upcoming": "Upcoming lunches",
         "no_lunches": "No lunches planned yet.",
+        "swap": "Swap sides",
+        "no_salad": "No salad or vegetables",
         "database": "Meal database",
         "single": "Single dishes",
         "composed": "Composed main courses",

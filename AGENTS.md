@@ -35,9 +35,11 @@ in behaviour, options, entities, actions or blueprints.
   only convenience. Any new write path needs the same check and a test.
 - Internal option keys stay stable when labels change: rename the label in
   the translation files, not the key.
-- A lunch is locked from the start of the day its shopping list goes out;
-  redraws must never change it. A missing lunch whose list is due is drawn at
-  midnight.
+- A lunch is locked from `LOCK_TIME` (18:00, fixed for now) of the day its
+  shopping list goes out; redraws and side swaps must never change it after
+  that. Before it they may, and the shopping list blueprint sends the list
+  again. The weekly draw time must be before `LOCK_TIME`. A missing lunch
+  whose list is due is drawn at midnight.
 - Panel conventions: meal lists sorted with `Intl.Collator` in the user's
   language; disabled meals greyed out with a "not drawn" badge; Ctrl+Enter
   saves the edit dialog; the redraw tile asks for confirmation (hold and

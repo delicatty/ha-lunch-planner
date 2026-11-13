@@ -20,6 +20,8 @@ const TEXT_KEYS = {
   plan: "plan",
   upcoming: "upcoming",
   noLunches: "no_lunches",
+  swap: "swap",
+  noSalad: "no_salad",
   actions: "actions",
   database: "database",
   single: "single",
@@ -143,6 +145,7 @@ const STYLE = `
   }
   .lunch { display: flex; align-items: center; gap: 16px; padding: 10px 16px; border-top: 1px solid var(--divider-color, #e0e0e0); }
   .lunch-day { flex: 0 0 7em; }
+  .small-button { padding: 2px 8px; margin: 2px 0 0 -8px; font-size: 13px; }
   .empty { padding: 12px 16px 16px; color: var(--secondary-text-color); font-size: 14px; border-top: 1px solid var(--divider-color, #e0e0e0); }
   /* A switch like Home Assistant's own, built from a checkbox. */
   input.toggle {
@@ -559,12 +562,93 @@ class LunchPlannerPanel extends HTMLElement {
               lunch.meal,
               offset <= 1 ? el("span", { class: "chip" }, relative.format(offset, "day")) : null,
             ),
+            // Sides of a composed lunch can change until its shopping list goes out.
+            lunch.swap && this._isAdmin()
+              ? el(
+                  "button",
+                  { class: "text-button small-button", onclick: () => this._openSwapDialog(entryId, lunch) },
+                  texts.swap,
+                )
+              : null,
           ),
         ),
       );
     }
     if (!lunches.length) card.appendChild(el("div", { class: "empty" }, texts.noLunches));
     box.replaceChildren(card);
+  }
+
+  _openSwapDialog(entryId, lunch) {
+    const texts = this._texts();
+    const dialog = this._dialog;
+    const meals = this._meals[entryId] || {};
+    const month = Number(lunch.date.slice(5, 7));
+    const inSeason = (meal) => {
+      if (!meal.season) return true;
+      const [start, end] = meal.season;
+      return start <= end ? start <= month && month <= end : month >= start || month <= end;
+    };
+    const collator = new Intl.Collator(this._hass.locale?.language || this._hass.language, { sensitivity: "base", numeric: true });
+    // What can be drawn on that day, and the current side even if it cannot.
+    const choices = (category, current) =>
+      (meals[category] || [])
+        .filter((meal) => meal.uid === current || (meal.active && inSeason(meal)))
+        .sort((a, b) => collator.compare(a.name, b.name))
+        .map((meal) => el("option", { value: meal.uid, selected: meal.uid === current }, meal.name));
+
+    const starch = el("select", {}, choices("starch", lunch.swap.starch));
+    const salad = el(
+      "select",
+      {},
+      el("option", { value: "", selected: !lunch.swap.salad }, texts.noSalad),
+      choices("salad", lunch.swap.salad),
+    );
+    const error = el("div", { class: "error" });
+    const close = () => dialog.close();
+    const day = new Intl.DateTimeFormat(this._hass.language || "en", {
+      weekday: "long", day: "numeric", month: "long", timeZone: "UTC",
+    }).format(new Date(`${lunch.date}T12:00:00Z`));
+    const form = el(
+      "form",
+      {
+        method: "dialog",
+        onsubmit: async (ev) => {
+          ev.preventDefault();
+          try {
+            await this._hass.callWS({
+              type: "lunch_planner/plan/swap",
+              entry_id: entryId,
+              date: lunch.date,
+              starch: starch.value,
+              salad: salad.value || null,
+            });
+            close();
+          } catch (err) {
+            error.textContent = `${texts.error}: ${err.message || err.code || err}`;
+          }
+        },
+      },
+      el("h2", { class: "dialog-title" }, texts.swap),
+      el("div", { class: "hint" }, `${day} · ${lunch.meal}`),
+      el("label", { class: "field" }, texts.categories.starch, starch),
+      el("label", { class: "field" }, texts.categories.salad, salad),
+      error,
+      el(
+        "div",
+        { class: "actions" },
+        el("button", { class: "text-button", type: "button", onclick: close }, texts.cancel),
+        el("button", { class: "primary", type: "submit" }, texts.save),
+      ),
+    );
+    form.addEventListener("keydown", (ev) => {
+      if (ev.key === "Enter" && (ev.ctrlKey || ev.metaKey)) {
+        ev.preventDefault();
+        form.requestSubmit();
+      }
+    });
+    dialog.replaceChildren(form);
+    dialog.showModal();
+    starch.focus();
   }
 
   _renderMeals(entryId) {

@@ -7,7 +7,9 @@ blueprint:
     closed on Sunday). When a lunch is bought in the morning of its day (after
     a long break, e.g. Easter), the list is sent the evening before.
     Optionally, when a person is at work at the set time, the list is sent as
-    they leave work, so they can shop on the way home.
+    they leave work, so they can shop on the way home. When a lunch on the
+    list changes after it was sent (sides swapped or drawn again before
+    18:00), the list is sent again.
   domain: automation
   author: delicatty
   source_url: https://github.com/delicatty/ha-lunch-planner/blob/main/blueprints/automation/lunch_planner/shopping_list.yaml
@@ -140,6 +142,10 @@ triggers:
   - trigger: time
     id: latest
     at: !input latest_time
+  - alias: A lunch changed after the list was sent
+    trigger: event
+    id: changed
+    event_type: lunch_planner_plan_updated
 
 conditions:
   - alias: The shopping list goes out today
@@ -150,11 +156,12 @@ conditions:
   - alias: There is something to buy
     condition: template
     value_template: "{{ items | count > 0 }}"
-  - alias: Not sent yet today
+  - alias: Not sent yet today (sent already, after a change)
     condition: template
     value_template: >-
-      {{ this.attributes.last_triggered is none
-         or as_local(this.attributes.last_triggered).date() < now().date() }}
+      {% set sent = this.attributes.last_triggered is not none
+         and as_local(this.attributes.last_triggered).date() == now().date() %}
+      {{ sent if trigger.id == 'changed' else not sent }}
   - alias: The right moment
     condition: template
     value_template: >-
@@ -162,6 +169,11 @@ conditions:
         {{ not at_work }}
       {% elif trigger.id == 'left_work' %}
         {{ today_at(earliest_time) <= now() < today_at(latest_time) }}
+      {% elif trigger.id == 'changed' %}
+        {% set entry = config_entry_id(sensor) %}
+        {{ (entry is none or entry == trigger.event.data.entry_id)
+           and trigger.event.data.drawn | select('in', state_attr(sensor, 'meal_dates') or [])
+               | list | count > 0 }}
       {% else %}
         {{ use_work }}
       {% endif %}

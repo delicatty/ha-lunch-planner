@@ -54,8 +54,11 @@ adding to a shopping list are done by automations; two ready
   lunch is bought on Saturday. When that would be 3 days or more before the
   lunch (e.g. after Easter), it is bought in the morning of the lunch day
   instead, and the shopping list goes out the evening before.
-- From the start of the day its shopping list goes out a lunch is fixed:
-  drawing again never changes a lunch whose shopping list may already be out.
+- Until 18:00 of the day its shopping list goes out a lunch can still change:
+  it can be drawn again, and a composed lunch can get other sides (**Swap
+  sides** in the panel: the starch and the salad or vegetables). From 18:00
+  it is fixed. A change after the list went out sends the list again (with
+  the shopping list blueprint). The weekly draw must come before 18:00.
 
 ## Installation
 
@@ -76,7 +79,7 @@ adding to a shopping list are done by automations; two ready
 | What each lunch is | One course, 2 soup days a week, soup preferably on Monday |
 | Avoid last week's meals | on |
 | First day of the week | From the country set in Home Assistant (Monday in most of Europe, Sunday e.g. in the US) |
-| Weekly draw | Saturday 09:00 (plans the next week) |
+| Weekly draw | Saturday 09:00 (plans the next week; must be before 18:00) |
 | Days without shopping | Sunday |
 | Days-off and holiday calendars | none (e.g. the Holiday integration's calendar for your country) |
 | Shops closed on public holidays | on (only the Holiday integration's calendars; a holiday trip cancels lunches only) |
@@ -141,7 +144,7 @@ them by their unique IDs.
   `season_from`/`season_to`, `active`), or change the one with that name.
 - `lunch_planner.remove_meal` – remove a meal by `category` and `name`.
 - Event `lunch_planner_plan_updated` after every draw, with `entry_id`,
-  `reason` (`weekly`, `redraw`, `missing`, `first`), `drawn` (dates; empty
+  `reason` (`weekly`, `redraw`, `missing`, `first`, `swap`), `drawn` (dates; empty
   for a weekly draw of a week drawn earlier),
   `meals` (every planned day from tomorrow to the end of that week: `date`,
   `label`, `meal`, `shopping_items`) and `summary` (one line per lunch).
@@ -227,7 +230,12 @@ i **surówki lub warzyw**.
   Holiday) przechodzą na wcześniejszy dzień: obiad na poniedziałek kupujesz
   w sobotę. Gdy wypadłoby to 3 dni lub więcej przed obiadem (np. po
   Wielkanocy), kupujesz go rano w dniu obiadu, a lista przychodzi wieczorem
-  dzień wcześniej. Od początku dnia, w którym wychodzi lista, obiad jest ustalony.
+  dzień wcześniej.
+- Do 18:00 dnia, w którym wychodzi lista zakupów, obiad można jeszcze
+  przelosować, a w obiedzie składanym wymienić dodatki (**Wymień dodatki**
+  w panelu: dodatek skrobiowy oraz surówkę lub warzywa). Od 18:00 obiad jest
+  ustalony. Zmiana po wysłaniu listy wysyła ją ponownie (blueprint „Shopping
+  list”). Losowanie tygodniowe musi być przed 18:00.
 - Przy pierwszym uruchomieniu i gdy Home Assistant był wyłączony w czasie
   losowania, reszta tygodnia (albo następny tydzień) losuje się od razu.
   Uruchomienie przed losowaniem tygodniowym (np. w piątek wieczorem) zostawia

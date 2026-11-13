@@ -95,13 +95,18 @@ async def test_config_flow(hass_pl: HomeAssistant) -> None:
     result = await hass.config_entries.flow.async_configure(result["flow_id"], every_day_worked)
     assert result["errors"] == {"workdays": "no_weekend_days"}
 
+    late_draw = {**DEFAULT_OPTIONS, "draw_time": "18:00:00"}
+    result = await hass.config_entries.flow.async_configure(result["flow_id"], late_draw)
+    assert result["errors"] == {"draw_time": "draw_after_lock"}
+
     # Weekends have 2 lunch days: 3 soups do not fit.
     weekend_soups = {**DEFAULT_OPTIONS, "meal_schedule": "weekends", "soup_days": 3.0}
     result = await hass.config_entries.flow.async_configure(result["flow_id"], weekend_soups)
     assert result["errors"] == {"soup_days": "too_many_soup_days"}
 
     result = await hass.config_entries.flow.async_configure(
-        result["flow_id"], {**DEFAULT_OPTIONS, "soup_days": 3.0, "soup_weekdays": ["mon", "thu"]}
+        result["flow_id"],
+        {**DEFAULT_OPTIONS, "soup_days": 3.0, "soup_weekdays": ["mon", "thu"], "draw_time": "17:59:00"},
     )
     assert result["type"] is FlowResultType.CREATE_ENTRY
     assert result["title"] == "Obiady"
@@ -323,6 +328,86 @@ async def test_websocket_plan_subscription(
     assert not (await client.receive_json())["success"]
 
 
+def composed(planner, day: str, starch: str, salad: str | None) -> dict:
+    """A composed lunch of the database's chop with the given sides (by name)."""
+    def part(category: str, name: str) -> dict:
+        meal = planner.find_by_name(category, name)
+        return {"category": category, "uid": meal["uid"], "name": meal["name"],
+                "ingredients": meal["ingredients"] or [meal["name"]]}
+    parts = [part("protein", "Kotlet schabowy"), part("starch", starch)]
+    if salad:
+        parts.append(part("salad", salad))
+    return {"date": day, "parts": parts}
+
+
+async def test_swap_sides(
+    hass_pl: HomeAssistant, hass_ws_client, freezer: FrozenDateTimeFactory
+) -> None:
+    """Sides of a composed lunch change until 18:00 of its shopping day."""
+    hass = hass_pl
+    entry = make_entry()
+    await setup_entry(hass, entry)
+    client = await hass_ws_client(hass)  # an admin; logged in before the clock moves
+    freezer.move_to(local("2026-11-11 17:00:00"))  # Wednesday
+    await fill_database(hass, entry)
+    planner = entry.runtime_data
+    # Thursday is bought today (Wednesday), Friday tomorrow.
+    planner.plan["2026-11-12"] = composed(planner, "2026-11-12", "Frytki", "Mizeria")
+    planner.plan["2026-11-13"] = composed(planner, "2026-11-13", "Ziemniaki z wody", "Mizeria")
+    planner.plan["2026-11-16"] = {"date": "2026-11-16", "parts": [
+        {"category": "dish", "uid": "d", "name": "Spaghetti", "ingredients": ["Spaghetti"]}
+    ]}
+    events = capture_plan_events(hass)
+    uid = lambda category, name: planner.find_by_name(category, name)["uid"]  # noqa: E731
+
+    await client.send_json_auto_id({"type": "lunch_planner/plan/subscribe", "entry_id": entry.entry_id})
+    assert (await client.receive_json())["success"]
+    lunches = {lunch["date"]: lunch for lunch in (await client.receive_json())["event"]["lunches"]}
+    assert lunches["2026-11-12"]["swap"] == {
+        "starch": uid("starch", "Frytki"), "salad": uid("salad", "Mizeria")
+    }
+    assert "swap" in lunches["2026-11-13"]
+    assert "swap" not in lunches["2026-11-16"]  # not a composed lunch
+
+    async def swap(day: str, starch: str, salad: str | None = None) -> dict:
+        message = {"type": "lunch_planner/plan/swap", "entry_id": entry.entry_id, "date": day,
+                   "starch": starch, "salad": salad}
+        await client.send_json_auto_id(message)
+        while True:
+            response = await client.receive_json()
+            if response.get("type") == "result":
+                return response
+
+    response = await swap("2026-11-12", uid("starch", "Pieczone ziemniaki"), uid("salad", "Miks sałat"))
+    assert response["success"]
+    assert [p["name"] for p in planner.plan["2026-11-12"]["parts"]] == [
+        "Kotlet schabowy", "Pieczone ziemniaki", "Miks sałat"
+    ]
+    assert events[-1].data["reason"] == "swap"
+    assert events[-1].data["drawn"] == ["2026-11-12"]
+
+    # Without a salad.
+    assert (await swap("2026-11-13", uid("starch", "Frytki")))["success"]
+    assert [p["name"] for p in planner.plan["2026-11-13"]["parts"]] == ["Kotlet schabowy", "Frytki"]
+
+    # Not a composed lunch, a side from the wrong category, no lunch, a bad date.
+    for day, starch in (
+        ("2026-11-16", uid("starch", "Frytki")),
+        ("2026-11-13", uid("salad", "Mizeria")),
+        ("2026-11-17", uid("starch", "Frytki")),
+        ("someday", uid("starch", "Frytki")),
+    ):
+        assert not (await swap(day, starch))["success"], day
+
+    # From 18:00 Thursday's lunch is fixed; Friday's is bought tomorrow.
+    freezer.move_to(local("2026-11-11 18:00:00"))
+    async_fire_time_changed(hass)
+    await hass.async_block_till_done()
+    assert not (await swap("2026-11-12", uid("starch", "Frytki")))["success"]
+    assert [p["name"] for p in planner.plan["2026-11-12"]["parts"]][1] == "Pieczone ziemniaki"
+    assert (await swap("2026-11-13", uid("starch", "Pieczone ziemniaki")))["success"]
+
+
 async def test_websocket_meal_editing(hass_pl: HomeAssistant, hass_ws_client) -> None:
     hass = hass_pl
     entry = make_entry()
@@ -430,6 +515,7 @@ async def test_only_admins_change_the_database_and_draw(
     for message in (
         {"type": "lunch_planner/meals/save", "category": "soup", "name": "Ogórkowa"},
         {"type": "lunch_planner/meals/delete", "uid": uid},
+        {"type": "lunch_planner/plan/swap", "date": "2030-01-01", "starch": uid},
     ):
         await client.send_json_auto_id({**message, "entry_id": entry.entry_id})
         response = await client.receive_json()
@@ -597,10 +683,16 @@ async def test_shopping_day_lock_and_to_buy_sensor(
     # Friday: Monday can still change.
     assert not planner.is_locked(dt_util.parse_date("2026-11-16"))
 
-    # Saturday is Monday's shopping day (shops are closed on Sunday): locked.
-    freezer.move_to(local("2026-11-14 08:00:00"))
+    # Saturday is Monday's shopping day (shops are closed on Sunday): it can
+    # still change until 18:00, then it is locked.
+    freezer.move_to(local("2026-11-14 17:59:00"))
     async_fire_time_changed(hass)
     await hass.async_block_till_done()
+    assert not planner.is_locked(dt_util.parse_date("2026-11-16"))
+    freezer.move_to(local("2026-11-14 18:00:00"))
+    async_fire_time_changed(hass)
+    await hass.async_block_till_done()
+    assert planner.is_locked(dt_util.parse_date("2026-11-16"))
     monday = planner.plan["2026-11-16"]
     await hass.services.async_call(DOMAIN, "redraw", {}, blocking=True)
     assert planner.plan["2026-11-16"] == monday
